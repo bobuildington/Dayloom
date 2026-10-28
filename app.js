@@ -33,11 +33,14 @@
       '<a class="smart-link" href="'+escapeHtml(link.href)+'" target="_blank" rel="noopener noreferrer" title="'+escapeHtml(link.label)+'" aria-label="Open '+escapeHtml(link.label)+' in a new tab">'+icon('arrow')+'<span>'+escapeHtml(link.label)+'</span></a>'
     ).join('')+(entries.length>limit?'<span class="link-extra">+'+(entries.length-limit)+' more in editor</span>':'')+'</div>';
   }
-  function refreshWebLinks(contentId,titleId,previewId){
+  function youtubeIds(values){const ids=[],seen=new Set();const re=/(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?[^<>\s]*?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/g;for(const text of values){for(const m of String(text??'').matchAll(re)){const id=m[1];if(!seen.has(id)){seen.add(id);ids.push(id);if(ids.length>=10)break;}}if(ids.length>=10)break;}return ids;}
+  function refreshWebLinks(contentId,titleId,previewId,videoId){
     const preview=el(previewId);
-    if(!preview)return;
-    preview.innerHTML=webLinks([el(titleId).value,el(contentId).value],16);
-    preview.hidden=!preview.innerHTML;
+    if(preview){preview.innerHTML=webLinks([el(titleId).value,el(contentId).value],16);preview.hidden=!preview.innerHTML;}
+    if(!videoId)return;const box=el(videoId);if(!box)return;
+    const ids=youtubeIds([el(titleId).value,el(contentId).value]);
+    const key=JSON.stringify(ids);if(box.dataset.ytIds===key)return;box.dataset.ytIds=key;
+    box.innerHTML=ids.map(id=>`<div class="video-embed"><iframe src="https://www.youtube.com/embed/${id}" title="YouTube video" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" allowfullscreen></iframe></div>`).join('');
   }
   const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
   const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -233,7 +236,7 @@
     el('eventStartTime').value=e?.startTime||'09:00';el('eventEndTime').value=e?.endTime||'10:00';
     el('eventRepeat').value=e?.repeat||'none';el('eventNotes').value=e?.notes||'';
     ui.selectedEventColor=e?.color||data.settings.accent;paintEventColors();toggleEventTimes();
-    el('eventDelete').hidden=!e;refreshWebLinks('eventNotes','eventTitle','eventLinkPreview');openDialog('eventDialog');setTimeout(()=>el('eventTitle').focus(),25);
+    el('eventDelete').hidden=!e;refreshWebLinks('eventNotes','eventTitle','eventLinkPreview','eventVideoPreview');openDialog('eventDialog');setTimeout(()=>el('eventTitle').focus(),25);
   }
   function saveEvent(evt){
     evt.preventDefault();const title=el('eventTitle').value.trim();if(!title){el('eventTitle').reportValidity();el('eventTitle').focus();return;}
@@ -369,7 +372,7 @@
     el('noteFolder').innerHTML='<option value="">Unfiled</option>'+data.noteFolders.map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
     ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;
-    refreshWebLinks('noteBody','noteTitle','noteLinkPreview');openDialog('noteDialog');setTimeout(()=>el('noteTitle').focus(),25);
+    refreshWebLinks('noteBody','noteTitle','noteLinkPreview','noteVideoPreview');openDialog('noteDialog');setTimeout(()=>el('noteTitle').focus(),25);
   }
   function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
@@ -452,7 +455,7 @@
     el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';el('taskReminder').value=task?.reminder||'';
     ui.editChecklist=(task?.checklist||[]).map(s=>({...s}));paintTaskChecklist();
     ui.editMedia={kind:'task',ownerId:el('taskId').value,original:(task?.attachments||[]).map(a=>({...a})),items:(task?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
-    el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
+    el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview','taskVideoPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
   }
   function saveTask(event){event.preventDefault();
     const title=el('taskTitle').value.trim();if(!title){el('taskTitle').reportValidity();el('taskTitle').focus();return;}
@@ -684,7 +687,7 @@
   document.addEventListener('contextmenu',e=>{if(!pressTimer&&Date.now()-pressFiredAt>600)return;const target=e.target;if(target.closest&&target.closest('.task-row,.event-row,.note-card')&&!target.closest('a'))e.preventDefault();});
   document.addEventListener('click',e=>{if(!suppressClick)return;suppressClick=false;e.stopPropagation();e.preventDefault();},true);
   document.addEventListener('keydown',e=>{if(e.target.id==='checklistAdd'&&e.key==='Enter'){e.preventDefault();handleAction({dataset:{action:'checklist-add'}});}});
-  document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
+  document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}});
   document.addEventListener('change',e=>{const id=e.target.id,value=e.target.value;
