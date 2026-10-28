@@ -24,6 +24,9 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Custom weekday repeats: repeat a task on specific weekdays (for example Mon, Wed, Fri) instead of one task per day.
 - Repeat end dates: set a task to stop repeating after a date.
 - Global search: the header search button now searches tasks, events, and notes together, on phone and desktop.
+- Workouts section: the Workouts tab is now a full section with its own tabs — Sessions (week view, today's session, timers), Strength, Core, and Cardio. Each kind tab has a searchable exercise library with playable demo videos and an "Add to today's session" button.
+- Start today's workout: a guided player that walks through today's session step by step, with Start, Skip, and Finish controls. Each step has its demo video, its own timer, and a Done button that checks it off.
+- Per-workout videos and timers: every workout in the Workouts list gets a Videos button (a popup playing that workout's demo videos) and a Timer button right on it, so you never have to scroll to the top of the page for a timer.
 - Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards

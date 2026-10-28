@@ -126,7 +126,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null};
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -440,22 +440,89 @@
   function buildTimerPhases(preset){
     if(preset==='rest')return [{label:'Rest',secs:60}];
     if(preset==='plank')return [{label:'Plank',secs:40}];
+    if(preset==='walk')return [{label:'Brisk walk',secs:1500}];
     const phases=[{label:'Warm up',secs:300}];
     for(let r=1;r<=8;r++){phases.push({label:`HARD · Round ${r} of 8`,secs:30});phases.push({label:`Easy · Round ${r} of 8`,secs:60});}
     phases.push({label:'Cool down',secs:180});
     return phases;
   }
-  function timerLabel(preset){return preset==='rest'?'Rest — 60 sec':preset==='plank'?'Plank — 40 sec':'Cardio intervals — 20 min';}
+  function timerLabel(preset){return preset==='rest'?'Rest — 60 sec':preset==='plank'?'Plank — 40 sec':preset==='walk'?'Brisk walk — 25 min':'Cardio intervals — 20 min';}
   function beep(times){try{ui.audioCtx=ui.audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(ui.audioCtx.state==='suspended')ui.audioCtx.resume();const ctx=ui.audioCtx;for(let i=0;i<times;i++){const t=ctx.currentTime+i*0.25;const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.2,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.22);}}catch(e){}}
   function buzz(pattern){try{if(navigator.vibrate)navigator.vibrate(pattern);}catch(e){}}
-  function saveTimerState(){try{if(ui.timer)localStorage.setItem('dayloom:timer',JSON.stringify({preset:ui.timer.preset,phases:ui.timer.phases,index:ui.timer.index,endsAt:ui.timer.endsAt,remaining:ui.timer.remaining,running:ui.timer.running}));else localStorage.removeItem('dayloom:timer');}catch(e){}}
+  function saveTimerState(){try{if(ui.timer)localStorage.setItem('dayloom:timer',JSON.stringify({preset:ui.timer.preset,phases:ui.timer.phases,index:ui.timer.index,endsAt:ui.timer.endsAt,remaining:ui.timer.remaining,running:ui.timer.running,source:ui.timer.source||null}));else localStorage.removeItem('dayloom:timer');}catch(e){}}
   function paintTimerDisplay(){const box=el('timerDisplay');if(!box)return;if(!ui.timer){box.innerHTML='<p class="form-tip">Pick a timer to begin. It keeps counting if you leave this tab, and it beeps and buzzes when each phase changes.</p>';return;}const t=ui.timer,phase=t.phases[t.index],secs=Math.max(0,Math.ceil((t.running?t.endsAt-Date.now():t.remaining)/1000));const mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');box.innerHTML=`<div class="timer-current"><strong>${escapeHtml(phase.label)}</strong><span class="timer-count" id="timerCountdown">${mm}:${ss}</span><span class="timer-meta">${escapeHtml(t.label)} · Phase ${t.index+1} of ${t.phases.length}</span></div><div class="setting-action"><button class="btn btn-primary" data-action="timer-pause">${t.running?'Pause':'Resume'}</button><button class="btn btn-danger-soft" data-action="timer-stop">Stop</button></div>`;}
   function timerTick(){if(!ui.timer||!ui.timer.running)return;const remain=ui.timer.endsAt-Date.now();if(remain>0){const cd=el('timerCountdown');if(cd){const secs=Math.ceil(remain/1000);cd.textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;}return;}const t=ui.timer;t.index++;if(t.index>=t.phases.length){stopTimer(true);return;}beep(2);buzz(200);t.endsAt=Date.now()+t.phases[t.index].secs*1000;saveTimerState();paintTimerDisplay();}
   function stopTimerSilent(){if(ui.timerTick){clearInterval(ui.timerTick);ui.timerTick=null;}ui.timer=null;}
-  function startTimer(preset){if(!['cardio','rest','plank'].includes(preset))return;stopTimerSilent();const phases=buildTimerPhases(preset);ui.timer={preset,label:timerLabel(preset),phases,index:0,endsAt:Date.now()+phases[0].secs*1000,remaining:phases[0].secs*1000,running:true};beep(1);saveTimerState();ui.timerTick=setInterval(timerTick,200);paintTimerDisplay();}
+  function startTimer(preset,source=null){if(!['cardio','rest','plank','walk'].includes(preset))return;stopTimerSilent();const phases=buildTimerPhases(preset);ui.timer={preset,label:timerLabel(preset),phases,index:0,endsAt:Date.now()+phases[0].secs*1000,remaining:phases[0].secs*1000,running:true,source:source||null};beep(1);saveTimerState();ui.timerTick=setInterval(timerTick,200);paintTimerDisplay();}
   function pauseTimer(){if(!ui.timer)return;if(ui.timer.running){ui.timer.remaining=Math.max(0,ui.timer.endsAt-Date.now());ui.timer.running=false;if(ui.timerTick){clearInterval(ui.timerTick);ui.timerTick=null;}}else{ui.timer.endsAt=Date.now()+ui.timer.remaining;ui.timer.running=true;ui.timerTick=setInterval(timerTick,200);}saveTimerState();paintTimerDisplay();}
   function stopTimer(finished){const had=!!ui.timer;stopTimerSilent();saveTimerState();if(finished&&had){beep(3);buzz([300,100,300]);notify('Timer done — nice work.');}paintTimerDisplay();}
-  function restoreTimer(){try{const raw=localStorage.getItem('dayloom:timer');if(!raw)return;const s=JSON.parse(raw);if(!s||!Array.isArray(s.phases)||!s.phases.length)return;if(s.running&&s.endsAt>Date.now()){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:s.endsAt,remaining:s.endsAt-Date.now(),running:true};ui.timerTick=setInterval(timerTick,200);}else if(!s.running&&s.remaining>0){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:0,remaining:s.remaining,running:false};}else localStorage.removeItem('dayloom:timer');}catch(e){}}
+  function restoreTimer(){try{const raw=localStorage.getItem('dayloom:timer');if(!raw)return;const s=JSON.parse(raw);if(!s||!Array.isArray(s.phases)||!s.phases.length)return;if(s.running&&s.endsAt>Date.now()){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:s.endsAt,remaining:s.endsAt-Date.now(),running:true,source:s.source||null};ui.timerTick=setInterval(timerTick,200);}else if(!s.running&&s.remaining>0){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:0,remaining:s.remaining,running:false,source:s.source||null};}else localStorage.removeItem('dayloom:timer');}catch(e){}}
+  const WORKOUT_LIBRARY={
+    strength:[
+      {name:'Goblet squat',cue:'Hold one 15 lb dumbbell at your chest, squat until your thighs are parallel, then drive up.',video:'NIrcxSkwui8',step:'Goblet squat — 3x12 (one 15)'},
+      {name:'Floor press',cue:'Lie on your back, a 15 in each hand, press up from your chest.',video:'_KwWsz38j6M',step:'Floor press — 3x10-12 (a 15 in each hand)'},
+      {name:'One-arm row',cue:'Lean on a sturdy chair or bed edge, pull a 15 up to your hip.',video:'ZRSGpBUVcNw',step:'One-arm row — 3x12 each side (15)'},
+      {name:'Romanian deadlift',cue:'A 15 in each hand, hinge at the hips, slight bend in the knees, lower to mid-shin, stand tall.',video:'hQgFixeXdZo',step:'Romanian deadlift — 3x12 (a 15 in each hand)'},
+      {name:'Overhead press',cue:'Start with the 5s, move to the 15s when 12 reps feels easy.',video:'Did01dFR3Lk',step:'Overhead press — 3x10 (5s)'},
+      {name:'Reverse lunge',cue:'Hold the 5s at your sides, step back, both knees to 90 degrees.',video:'Z1HLhIZCjvI',step:'Reverse lunge — 3x10 each side (holding the 5s)'}
+    ],
+    core:[
+      {name:'Crunches',cue:'12-15 reps, slow and controlled, exhale at the top.',video:'',step:'Crunches — 12-15'},
+      {name:'Plank',cue:'40 seconds, straight line from head to heels, do not let your hips sag.',video:'iL6F_LAdm-4',step:'Plank — 40 sec'},
+      {name:'Dead bug',cue:'10 each side, low back pressed into the floor the whole time.',video:'PLzga2ED328',step:'Dead bugs — 10 each side'}
+    ],
+    cardio:[
+      {name:'Brisk walk in place',cue:'Warm-up pace, knees up, arms swinging.',video:'',step:'Brisk walk in place'},
+      {name:'Fast marching',cue:'Quick steps, knees high, stay light on your feet.',video:'',step:'Fast marching'},
+      {name:'High knees',cue:'Fast, knees up to hip height.',video:'',step:'High knees'},
+      {name:'Jumping jacks',cue:'Full range, arms overhead on every rep.',video:'',step:'Jumping jacks'},
+      {name:'Mountain climbers',cue:'Plank position, drive knees to your chest fast, hips level.',video:'',step:'Mountain climbers'}
+    ]
+  };
+  function renderWorkoutKind(kind){
+    const kinds={strength:'Strength',core:'Core',cardio:'Cardio'};
+    const list=WORKOUT_LIBRARY[kind]||[];
+    const cards=list.map(ex=>`<article class="exercise-card" data-name="${escapeHtml(ex.name.toLowerCase())}" data-cue="${escapeHtml(ex.cue.toLowerCase())}"><h3>${escapeHtml(ex.name)}</h3><p>${escapeHtml(ex.cue)}</p>${ex.video?`<div class="video-embed"><iframe src="https://www.youtube.com/embed/${ex.video}" loading="lazy" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" title="${escapeHtml(ex.name)} demo"></iframe></div>`:''}<button class="btn" data-action="workout-add" data-name="${escapeHtml(ex.name)}" data-step="${escapeHtml(ex.step)}">${icon('plus')} Add to today's session</button></article>`).join('');
+    return `<div class="toolbar"><div class="search-wrap">${icon('search')}<input id="workoutSearch" placeholder="Search ${kinds[kind]||''} moves..." autocomplete="off"></div></div><div class="exercise-grid">${cards}</div><p class="form-tip" id="workoutNoMatch" hidden>No moves match that search.</p>${kind==='cardio'?`<p class="form-tip">Tip: run these with the Cardio intervals timer on the Sessions tab.</p>`:''}`;
+  }
+  function filterWorkoutExercises(){const q=(el('workoutSearch')?.value||'').trim().toLowerCase();let shown=0;document.querySelectorAll('.exercise-card').forEach(card=>{const match=!q||card.dataset.name.includes(q)||card.dataset.cue.includes(q);card.hidden=!match;if(match)shown++;});const nm=el('workoutNoMatch');if(nm)nm.hidden=shown>0;}
+  function addToTodaySession(name,step){
+    const today=todayKey();
+    let session=sortTasks(data.tasks.filter(t=>t.listId==='workouts'&&t.dueDate===today&&!t.completed))[0];
+    if(session&&(session.checklist||[]).some(s=>s.text===step)){notify('Already in today\'s session.');return;}
+    const now=new Date().toISOString();
+    if(!session){
+      session={id:uuid(),title:'Workout',notes:'',dueDate:today,listId:'workouts',priority:'medium',repeat:'none',repeatDays:[],repeatUntil:'',completed:false,completedAt:'',createdAt:now,updatedAt:now,reminder:'',reminderNotified:'',checklist:[],attachments:[]};
+      data.tasks.push(session);
+    }
+    session.checklist=session.checklist||[];
+    session.checklist.push({id:uuid(),text:step,done:false});
+    session.updatedAt=now;
+    persist();notify(`Added ${name} to today's session.`);
+  }
+  function presetForTask(t){const name=(t.title||'').toLowerCase();if(name.includes('cardio'))return 'cardio';if(name.includes('walk'))return 'walk';return 'rest';}
+  function presetName(preset){return preset==='cardio'?'Cardio intervals':preset==='walk'?'Brisk walk':preset==='plank'?'Plank':'Rest';}
+  function timerForStep(step){const s=(step||'').toLowerCase();if(s.includes('plank'))return 'plank';if(s.includes('warm')||s.includes('interval')||s.includes('cool')||s.includes('cardio'))return 'cardio';if(s.includes('walk'))return 'walk';return 'rest';}
+  function videoForStep(step){const s=(step||'').toLowerCase();for(const kind of ['strength','core','cardio']){for(const ex of WORKOUT_LIBRARY[kind]){if(ex.video&&s.startsWith(ex.name.toLowerCase()))return ex.video;}}return '';}
+  function timerPlacement(timer,playerActive,startKey,endKey,tasks){if(playerActive&&timer&&timer.source==='player')return 'player';if(timer&&timer.source&&timer.source!=='player'){const t=tasks.find(x=>x.id===timer.source);if(t&&t.dueDate>=startKey&&t.dueDate<=endKey)return 'row';}return 'top';}
+  function openVideoDialog(title,ids){el('workoutVideoTitle').textContent=title;el('workoutVideoBody').innerHTML=ids.map(id=>`<div class="video-embed"><iframe src="https://www.youtube.com/embed/${id}" loading="lazy" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" title="Workout demo"></iframe></div>`).join('');openDialog('workoutVideoDialog');}
+  function playerAdvance(){const p=ui.player;if(!p)return;const t=data.tasks.find(x=>x.id===p.taskId);if(!t){ui.player=null;render();return;}const steps=t.checklist||[];let next=-1;for(let i=p.index+1;i<steps.length;i++){if(!steps[i].done){next=i;break;}}if(next>=0)p.index=next;else p.done=true;render();}
+  function renderPlayer(){
+    const p=ui.player;if(!p)return '';
+    const t=data.tasks.find(x=>x.id===p.taskId);
+    if(!t){ui.player=null;return '';}
+    const steps=t.checklist||[];
+    if(!steps.length)return `<div class="player-panel"><h2>Today's workout</h2><p>This session has no exercises yet — add some from the Strength, Core, or Cardio tabs.</p><div class="setting-action"><button class="btn" data-action="player-finish">Close</button></div></div>`;
+    if(p.done){
+      const doneCount=steps.filter(s=>s.done).length,remaining=steps.length-doneCount;
+      return `<div class="player-panel"><h2>${doneCount===steps.length?'All done — nice work.':'Session finished'}</h2><p>${doneCount} of ${steps.length} exercises checked off${remaining?` · ${remaining} skipped`:''}.</p><div class="setting-action">${remaining?`<button class="btn btn-primary" data-action="player-resume">Do skipped moves</button>`:''}<button class="btn" data-action="player-finish">Finish</button></div></div>`;
+    }
+    const step=steps[p.index]||{text:''};
+    const video=videoForStep(step.text);
+    const preset=timerForStep(step.text);
+    const timerArea=ui.timer&&ui.timer.source==='player'?'<div id="timerDisplay"></div>':`<div class="setting-action"><button class="btn btn-primary" data-action="player-timer">Start ${presetName(preset)} timer</button></div>`;
+    return `<div class="player-panel"><div class="eyebrow">TODAY'S WORKOUT · ${escapeHtml(t.title)}</div><h2>${escapeHtml(step.text)}</h2><p>Exercise ${p.index+1} of ${steps.length}</p>${video?`<div class="setting-action"><button class="btn" data-action="player-video" data-video="${video}">Play video</button></div>`:''}${timerArea}<div class="setting-action"><button class="btn btn-primary" data-action="player-done">Done — next</button><button class="btn" data-action="player-skip">Skip</button><button class="btn" data-action="player-finish">Finish workout</button></div></div>`;
+  }
   function workoutWeekRange(){const today=parseLocalDate(todayKey());const start=new Date(today);start.setDate(today.getDate()-((today.getDay()-data.settings.weekStart+7)%7)+(ui.workoutWeek||0)*7);const startKey=localDate(start);return {startKey,endKey:datePlus(startKey,6),label:`Week of ${dateLabel(startKey,{month:'short',day:'numeric'})}` };}
   function renderWorkouts(){
     const today=todayKey(),range=workoutWeekRange();
@@ -467,12 +534,20 @@
     const nextSession=!todaySession?sortTasks(wtasks.filter(t=>!t.completed&&t.dueDate>today))[0]:null;
     const session=todaySession||nextSession;
     const days=[];for(let i=0;i<7;i++){const date=datePlus(range.startKey,i);const d=parseLocalDate(date);const name=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];const st=wtasks.filter(t=>t.dueDate===date);const done=st.filter(t=>t.completed);const label=st.length?(done.length===st.length?'Done ✓':date===today?'Today':date<today?'Missed':'Scheduled'):'Rest';days.push({date,name,st,label});}
-    const weekRows=days.map(day=>{const s=day.st[0];return `<div class="workout-day ${day.date===today?'is-today':''}"><span class="workout-day-name">${day.name}<small>${dateLabel(day.date,{month:'short',day:'numeric'})}</small></span>${s?`<button class="workout-day-session" data-action="edit-task" data-id="${escapeHtml(s.id)}"><strong>${escapeHtml(s.title)}</strong><span class="${day.label.includes('Missed')?'overdue':''}">${day.label}</span></button>`:`<span class="workout-day-rest">Rest</span>`}</div>`;}).join('');
+    const timerPlace=timerPlacement(ui.timer,!!ui.player,range.startKey,range.endKey,wtasks);
+    const weekRows=days.map(day=>{const s=day.st[0];if(!s)return `<div class="workout-day ${day.date===today?'is-today':''}"><span class="workout-day-name">${day.name}<small>${dateLabel(day.date,{month:'short',day:'numeric'})}</small></span><span class="workout-day-rest">Rest</span></div>`;const vids=youtubeIds([s.title,s.notes]);const tools=`<span class="workout-day-tools">${vids.length?`<button class="workout-tool-btn" data-action="workout-videos" data-id="${escapeHtml(s.id)}">Videos</button>`:''}<button class="workout-tool-btn" data-action="timer-start-session" data-id="${escapeHtml(s.id)}">Timer</button></span>`;const timerDiv=(timerPlace==='row'&&day.st.some(x=>x.id===ui.timer.source))?'<div id="timerDisplay" class="workout-day-timer"></div>':'';return `<div class="workout-day ${day.date===today?'is-today':''}"><span class="workout-day-name">${day.name}<small>${dateLabel(day.date,{month:'short',day:'numeric'})}</small></span><button class="workout-day-session" data-action="edit-task" data-id="${escapeHtml(s.id)}"><strong>${escapeHtml(s.title)}</strong><span class="${day.label.includes('Missed')?'overdue':''}">${day.label}</span></button>${tools}${timerDiv}</div>`;}).join('');
     const planNotes=data.notes.filter(n=>n.folderId==='workouts');
-    return head('Workouts','Your training, in one place.',`<button class="btn btn-primary" data-action="new-task" data-list="workouts">${icon('plus')} New workout</button>`)+
-      `<div class="section-title"><h2>Timers</h2></div><div class="timer-presets"><button class="btn" data-action="timer-start" data-preset="cardio">${icon('clock')} Cardio intervals · 20 min</button><button class="btn" data-action="timer-start" data-preset="rest">${icon('clock')} Rest · 60 sec</button><button class="btn" data-action="timer-start" data-preset="plank">${icon('clock')} Plank · 40 sec</button></div><div id="timerDisplay"></div>`+
+    const tabs=[['sessions','Sessions'],['strength','Strength'],['core','Core'],['cardio','Cardio']];
+    const tabBar=`<div class="workout-tabs">${tabs.map(([id,label])=>`<button class="workout-tab-btn ${ui.workoutTab===id?'active':''}" data-action="workout-tab" data-tab="${id}">${label}</button>`).join('')}</div>`;
+    const top=head('Workouts','Your training, in one place.',`<button class="btn btn-primary" data-action="new-task" data-list="workouts">${icon('plus')} New workout</button>`)+tabBar;
+    if(ui.workoutTab!=='sessions')return top+renderWorkoutKind(ui.workoutTab);
+    const startRow=(!ui.player&&todaySession&&(todaySession.checklist||[]).length)?`<div class="player-start-row"><button class="btn btn-primary" data-action="player-start" data-id="${escapeHtml(todaySession.id)}">Start today's workout</button></div>`:'';
+    const playerPanel=ui.player?renderPlayer():'';
+    const sessionTools=session?`<div class="setting-action">${youtubeIds([session.title,session.notes]).length?`<button class="btn" data-action="workout-videos" data-id="${escapeHtml(session.id)}">Videos</button>`:''}<button class="btn btn-primary" data-action="timer-start-session" data-id="${escapeHtml(session.id)}">Start ${presetName(presetForTask(session))} timer</button></div>`:'';
+    return top+startRow+playerPanel+
+      `<div class="section-title"><h2>Timers</h2></div><div class="timer-presets"><button class="btn" data-action="timer-start" data-preset="cardio">${icon('clock')} Cardio intervals · 20 min</button><button class="btn" data-action="timer-start" data-preset="rest">${icon('clock')} Rest · 60 sec</button><button class="btn" data-action="timer-start" data-preset="plank">${icon('clock')} Plank · 40 sec</button><button class="btn" data-action="timer-start" data-preset="walk">${icon('clock')} Walk · 25 min</button></div>${timerPlace==='top'?'<div id="timerDisplay"></div>':''}`+
       `<div class="section-title"><h2>${range.label}</h2><span>${doneInRange} done · ${totalDone} total</span><span class="week-nav"><button class="btn" data-action="workout-week" data-dir="-1">‹ Prev</button>${(ui.workoutWeek||0)!==0?`<button class="btn" data-action="workout-week" data-dir="0">This week</button>`:''}<button class="btn" data-action="workout-week" data-dir="1">Next ›</button></span></div><div class="workout-week">${weekRows}</div>`+
-      (session?section(todaySession?"Today's session":'Up next',[session],'No session today','Add a workout to get started.'):section("Today's session",[],'No session today','Add a workout to get started.'))+
+      (session?section(todaySession?"Today's session":'Up next',[session],'No session today','Add a workout to get started.'):section("Today's session",[],'No session today','Add a workout to get started.'))+sessionTools+
       (planNotes.length?`<div class="section-title"><h2>Plan & notes</h2></div><div class="notes-grid">${planNotes.map(noteCard).join('')}</div>`:'');
   }
   function updateGlobalSearch(){const q=(el('globalSearchInput')?.value||'').trim().toLowerCase();const box=el('globalSearchResults');if(!box)return;if(!q){box.innerHTML='<p class="form-tip">Type to search tasks, events, and notes.</p>';return;}const taskHits=data.tasks.filter(t=>(t.title+' '+t.notes).toLowerCase().includes(q)).slice(0,5);const eventHits=data.events.filter(e=>(e.title+' '+e.notes).toLowerCase().includes(q)).slice(0,5);const noteHits=data.notes.filter(n=>(n.title+' '+n.body).toLowerCase().includes(q)).slice(0,5);const group=(label,hits,kind)=>hits.length?`<div class="global-group"><h3>${label}</h3>${hits.map(h=>`<button class="global-result" data-action="global-open" data-kind="${kind}" data-id="${escapeHtml(h.id)}"><strong>${escapeHtml(h.title)}</strong><span>${kind==='task'?(getList(h.listId).name+(h.dueDate?' · '+dateLabel(h.dueDate):'')):kind==='event'?eventWhen(h):(data.noteFolders.find(f=>f.id===h.folderId)?.name||'Unfiled')}</span></button>`).join('')}</div>`:'';const html=group('Tasks',taskHits,'task')+group('Events',eventHits,'event')+group('Notes',noteHits,'note');box.innerHTML=html||'<p class="form-tip">Nothing found.</p>';}
@@ -720,6 +795,17 @@
     else if(a==='media-remove'){if(ui.editMedia){ui.editMedia.items=ui.editMedia.items.filter(i=>i.id!==button.dataset.id);paintEditorMedia();}}
     else if(a==='repeat-day'){const day=Number(button.dataset.day);if(Number.isInteger(day)&&day>=0&&day<=6){ui.editRepeatDays=ui.editRepeatDays||[];const i=ui.editRepeatDays.indexOf(day);if(i>=0)ui.editRepeatDays.splice(i,1);else ui.editRepeatDays.push(day);paintRepeatDays();}}
     else if(a==='workout-week'){const dir=button.dataset.dir;ui.workoutWeek=dir==='0'?0:(ui.workoutWeek||0)+Number(dir);render();}
+    else if(a==='workout-tab'){ui.workoutTab=button.dataset.tab||'sessions';render();}
+    else if(a==='workout-add'){addToTodaySession(button.dataset.name||'',button.dataset.step||button.dataset.name||'');}
+    else if(a==='workout-videos'){const t=data.tasks.find(x=>x.id===button.dataset.id);if(!t)return;const ids=youtubeIds([t.title,t.notes]);if(!ids.length){notify('No videos on this workout.');return;}openVideoDialog(t.title,ids);}
+    else if(a==='player-video'){openVideoDialog('Exercise video',[button.dataset.video]);}
+    else if(a==='player-start'){const t=data.tasks.find(x=>x.id===button.dataset.id);if(!t)return;const steps=t.checklist||[];const first=steps.findIndex(s=>!s.done);ui.player={taskId:t.id,index:first>=0?first:0,done:first<0};render();}
+    else if(a==='player-done'){const p=ui.player;if(!p)return;const t=data.tasks.find(x=>x.id===p.taskId);if(!t){ui.player=null;render();return;}const steps=t.checklist||[];if(steps[p.index])steps[p.index].done=true;t.updatedAt=new Date().toISOString();persist();playerAdvance();}
+    else if(a==='player-skip'){playerAdvance();}
+    else if(a==='player-finish'){ui.player=null;render();}
+    else if(a==='player-resume'){const p=ui.player;if(!p)return;const t=data.tasks.find(x=>x.id===p.taskId);if(!t){ui.player=null;render();return;}const first=(t.checklist||[]).findIndex(s=>!s.done);if(first>=0){p.index=first;p.done=false;}else p.done=true;render();}
+    else if(a==='player-timer'){const p=ui.player;if(!p)return;const t=data.tasks.find(x=>x.id===p.taskId);if(!t)return;const steps=t.checklist||[];const step=steps[p.index];if(!step)return;startTimer(timerForStep(step.text),'player');render();}
+    else if(a==='timer-start-session'){const t=data.tasks.find(x=>x.id===button.dataset.id);if(t){startTimer(presetForTask(t),t.id);render();}}
     else if(a==='timer-start'){startTimer(button.dataset.preset);}
     else if(a==='timer-pause'){pauseTimer();}
     else if(a==='timer-stop'){stopTimer(false);}
@@ -750,7 +836,8 @@
   document.addEventListener('keydown',e=>{if(e.target.id==='checklistAdd'&&e.key==='Enter'){e.preventDefault();handleAction({dataset:{action:'checklist-add'}});}});
   document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
-    if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}});
+    if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}
+    if(e.target.id==='workoutSearch')filterWorkoutExercises();});
   document.addEventListener('change',e=>{const id=e.target.id,value=e.target.value;
     if(id==='statusFilter'){ui.taskStatus=value;updateTaskResults();}
     else if(id==='listFilter'){ui.taskList=value;updateTaskResults();}

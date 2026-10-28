@@ -206,3 +206,23 @@
 .global-result strong{font-size:13px}
 .global-result span{font-size:11px;color:var(--muted)}
 .mobile-nav button{min-width:0;flex:1}
+
+.workout-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.workout-tab-btn{min-height:42px;padding:10px 16px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-weight:700;font-size:13px}
+.workout-tab-btn.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.exercise-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.exercise-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
+.exercise-card h3{margin:0;font-size:16px}
+.exercise-card p{margin:0;color:var(--muted);font-size:13px}
+.exercise-card .btn{align-self:flex-start}
+.player-start-row{margin:0 0 18px}
+.player-start-row .btn{width:100%;min-height:50px;font-size:15px}
+.player-panel{background:var(--surface);border:2px solid var(--accent);border-radius:18px;padding:22px;box-shadow:var(--shadow);margin-bottom:20px}
+.player-panel h2{margin:6px 0 4px;font-size:22px}
+.player-panel p{margin:0 0 12px;color:var(--muted);font-size:13px}
+.player-panel .setting-action{margin-top:12px}
+.workout-day{flex-wrap:wrap}
+.workout-day-tools{display:flex;gap:6px;margin-left:auto}
+.workout-tool-btn{min-height:34px;padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface-alt);color:var(--text);font-weight:700;font-size:12px}
+.workout-day-timer{flex-basis:100%;margin-top:10px}
+.workout-day-timer .timer-current{margin-bottom:0}
