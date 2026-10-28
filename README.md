@@ -64,3 +64,7 @@ Dayloom does not send task, event or note data to GitHub or to any external serv
 ### Backup compatibility
 
 New exports are Dayloom JSON backup **version 4**, including calendar events, notes and note folders. The importer still accepts Dayloom **versions 1, 2 and 3**. Older notes without folders appear in Unfiled.
+
+## Clickable web links
+
+Paste `https://example.com` or `www.example.com` into task notes, regular notes, or calendar event notes. Dayloom displays tappable links below task rows, note cards and calendar event entries, as well as inside each editor. Links open in a new tab, plain text stays editable, and only HTTP/HTTPS addresses are linked. Your stored notes, tasks and events and backup format are unchanged.
