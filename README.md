@@ -10,8 +10,9 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Interactive **month/week/day** calendar (Sunday/Monday start) with dated tasks and standalone events, plus event search
 - Create, edit, complete and delete tasks; notes, priority and due dates
 - Create, edit, and delete calendar events (all-day or timed, multi-day, colored, recurring daily/weekly/monthly/yearly)
-- Daily, weekly and monthly repeats: completing a repeating task creates its next occurrence
+- Daily, weekly and monthly repeats: completing a repeating task creates its next occurrence (weekly repeats always land on the same weekday, even if you complete the task late)
 - Custom task lists with names and colors, task search, and status/list/priority filters
+- What you missed: overdue tasks on the Today dashboard and a Missed filter in All tasks, so you can check off, reschedule, or delete them
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards
 - iCalendar **`.ics` event export/import** for transfer with other calendar applications
