@@ -4,7 +4,7 @@
   const STORE_KEY = 'dayloom:data:v1';
   const PALETTE = ['#6457e8','#e99d64','#3ca99b','#e46a8a','#6399dd','#b17ad9','#b3a05d','#65788e'];
   const PRIORITIES = ['none','low','medium','high'];
-  const REPEATS = ['none','daily','weekly','monthly'];
+  const REPEATS = ['none','daily','weekly','monthly','custom'];
   const EVENT_REPEATS = ['none','daily','weekly','monthly','yearly'];
   const validTime = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v || '');
   const el = id => document.getElementById(id);
@@ -65,10 +65,13 @@
     for(const item of raw.tasks){
       if(!item || !validId(item.id) || !safeString(item.title,160).trim()) continue;
       const dueDate=validIsoDate(item.dueDate)?item.dueDate:'';
+      const repeatDays=Array.isArray(item.repeatDays)?item.repeatDays.filter(d=>Number.isInteger(d)&&d>=0&&d<=6).slice(0,7):[];
+      const rawRepeat=REPEATS.includes(item.repeat)?item.repeat:'none';
+      const finalRepeat=rawRepeat==='custom'&&repeatDays.length===0?'none':rawRepeat;
       taskMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),notes:safeString(item.notes,4000),dueDate,
         listId:listMap.has(item.listId)?item.listId:'inbox',priority:PRIORITIES.includes(item.priority)?item.priority:'none',
-        repeat:REPEATS.includes(item.repeat)?item.repeat:'none',completed:item.completed===true,
+        repeat:finalRepeat,repeatDays,repeatUntil:validIsoDate(item.repeatUntil)?item.repeatUntil:'',completed:item.completed===true,
         checklist:Array.isArray(item.checklist)?item.checklist.filter(s=>s&&typeof s.text==='string'&&s.text.trim()).slice(0,50).map(s=>({id:validId(s.id)?s.id:uuid(),text:s.text.slice(0,120),done:s.done===true})):[],
         reminder:validTime(item.reminder)?item.reminder:'',
         reminderNotified:validIsoDate(item.reminderNotified)?item.reminderNotified:'',
@@ -123,7 +126,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null};
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -135,7 +138,7 @@
     const themeTag=document.querySelector('meta[name="theme-color"]');if(themeTag)themeTag.content=dark?'#1e2031':'#f6f7fb';
   }
   function navigate(view){location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
-  const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'lists',text:'My lists',icon:'layers'},{id:'notes',text:'Notes',icon:'note'},{id:'settings',text:'Settings',icon:'settings'}];
+  const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'workouts',text:'Workouts',icon:'dumbbell'},{id:'lists',text:'My lists',icon:'layers'},{id:'notes',text:'Notes',icon:'note'},{id:'settings',text:'Settings',icon:'settings'}];
   function getList(id){return data.lists.find(l=>l.id===id)||data.lists.find(l=>l.id==='inbox')||defaultData().lists[0];}
   const activeTasks=() => data.tasks.filter(t=>!t.completed);
   const byDate=(a,b)=> (a.dueDate||'9999').localeCompare(b.dueDate||'9999') || ({high:0,medium:1,low:2,none:3}[a.priority]-{high:0,medium:1,low:2,none:3}[b.priority]) || a.createdAt.localeCompare(b.createdAt);
@@ -145,7 +148,7 @@
       `<div class="side-divider"></div><div class="side-list-label">MY LISTS<button class="text-icon-button" data-action="new-list" aria-label="Add list">+</button></div>`+
       data.lists.map(l=>`<button class="nav-item ${ui.view==='list:'+l.id?'active':''}" data-action="nav" data-view="list:${escapeHtml(l.id)}"><i class="list-dot" style="background:${l.color}"></i><span>${escapeHtml(l.name)}</span><span class="nav-count">${data.tasks.filter(t=>t.listId===l.id&&!t.completed).length}</span></button>`).join('');
     el('mobileNav').innerHTML=views.map(v=>`<button class="${(ui.view===v.id||(v.id==='lists'&&ui.view.startsWith('list:')))?'active':''}" data-action="nav" data-view="${v.id}" aria-label="${v.text}">${icon(v.icon)}<span>${v.id==='tasks'?'Tasks':v.id==='lists'?'Lists':v.text}</span></button>`).join('');
-    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',lists:'My lists',notes:'Notes',settings:'Settings'};
+    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',workouts:'Workouts',lists:'My lists',notes:'Notes',settings:'Settings'};
     el('topTitle').textContent=ui.view.startsWith('list:')?getList(ui.view.slice(5)).name:(titles[ui.view]||'Dayloom');
     el('headerAddEvent').hidden=ui.view!=='calendar';el('headerAdd').hidden=ui.view==='notes';el('headerAddNote').hidden=ui.view!=='notes';
     el('mobileAdd').setAttribute('aria-label',ui.view==='calendar'?'Add calendar event':ui.view==='notes'?'Add note':'Add task');
@@ -157,7 +160,7 @@
     const meta=[`<span><i class="list-dot" style="height:7px;width:7px;background:${list.color};margin-right:5px"></i>${escapeHtml(list.name)}</span>`];
     if(t.dueDate)meta.push(`<span class="${overdue?'overdue':''}">${icon('calendar')} ${t.dueDate===todayKey()?'Today':dateLabel(t.dueDate)}</span>`);
     if(t.priority!=='none')meta.push(`<span class="priority-${t.priority}">${escapeHtml(t.priority)} priority</span>`);
-    if(t.repeat!=='none')meta.push(`<span>↻ ${escapeHtml(t.repeat)}</span>`);
+    if(t.repeat!=='none')meta.push(`<span>↻ ${escapeHtml(t.repeat==='custom'&&t.repeatDays&&t.repeatDays.length?t.repeatDays.slice().sort((a,b)=>a-b).map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(', '):t.repeat)}${t.repeatUntil?` until ${dateLabel(t.repeatUntil)}`:''}</span>`);
     if(t.checklist&&t.checklist.length)meta.push(`<span>✓ ${t.checklist.filter(s=>s.done).length}/${t.checklist.length} steps</span>`);
     if(t.reminder)meta.push(`<span>${icon('clock')} ${t.reminder}</span>`);
     const mediaMeta=mediaCounts(t.attachments);if(mediaMeta)meta.push(`<span>${mediaMeta}</span>`);
@@ -434,8 +437,48 @@
   const toggleSelection=(kind,id)=>{if(!ui.selection||ui.selection.kind!==kind){startSelection(kind,id);return;}const at=ui.selection.ids.indexOf(id);if(at>=0)ui.selection.ids.splice(at,1);else ui.selection.ids.push(id);if(!ui.selection.ids.length)ui.selection=null;render();};
   function bulkDelete(){if(!ui.selection)return;const n=selectionCount(),kind=ui.selection.kind,ids=new Set(ui.selection.ids);const label=kind==='task'?'task':kind==='event'?'event':'note';const srcArr=kind==='task'?data.tasks:kind==='event'?data.events:data.notes;const items=srcArr.filter(x=>ids.has(x.id));if(!confirm(`Delete ${n} ${label}${n===1?'':'s'}? This cannot be undone.`))return;recordDelete(kind,items);items.forEach(deleteMediaFor);if(kind==='task')data.tasks=data.tasks.filter(t=>!ids.has(t.id));else if(kind==='event')data.events=data.events.filter(ev=>!ids.has(ev.id));else data.notes=data.notes.filter(no=>!ids.has(no.id));ui.selection=null;persist();render();}
   function bulkMove(){if(!ui.selection)return;const destEl=el('selectionMoveTarget');if(!destEl)return;const dest=destEl.value,n=selectionCount(),ids=new Set(ui.selection.ids);if(ui.selection.kind==='task'){data.tasks.forEach(t=>{if(ids.has(t.id))t.listId=dest;});const name=(data.lists.find(l=>l.id===dest)||{}).name||'that list';ui.selection=null;persist();render();notify(`Moved ${n} task${n===1?'':'s'} to ${name}.`);}else if(ui.selection.kind==='note'){data.notes.forEach(no=>{if(ids.has(no.id))no.folderId=dest;});const name=dest?noteFolderName(dest):'Unfiled';ui.selection=null;persist();render();notify(`Moved ${n} note${n===1?'':'s'} to ${name}.`);}}
+  function buildTimerPhases(preset){
+    if(preset==='rest')return [{label:'Rest',secs:60}];
+    if(preset==='plank')return [{label:'Plank',secs:40}];
+    const phases=[{label:'Warm up',secs:300}];
+    for(let r=1;r<=8;r++){phases.push({label:`HARD · Round ${r} of 8`,secs:30});phases.push({label:`Easy · Round ${r} of 8`,secs:60});}
+    phases.push({label:'Cool down',secs:180});
+    return phases;
+  }
+  function timerLabel(preset){return preset==='rest'?'Rest — 60 sec':preset==='plank'?'Plank — 40 sec':'Cardio intervals — 20 min';}
+  function beep(times){try{ui.audioCtx=ui.audioCtx||new (window.AudioContext||window.webkitAudioContext)();if(ui.audioCtx.state==='suspended')ui.audioCtx.resume();const ctx=ui.audioCtx;for(let i=0;i<times;i++){const t=ctx.currentTime+i*0.25;const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(0.001,t);g.gain.exponentialRampToValueAtTime(0.2,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+0.22);}}catch(e){}}
+  function buzz(pattern){try{if(navigator.vibrate)navigator.vibrate(pattern);}catch(e){}}
+  function saveTimerState(){try{if(ui.timer)localStorage.setItem('dayloom:timer',JSON.stringify({preset:ui.timer.preset,phases:ui.timer.phases,index:ui.timer.index,endsAt:ui.timer.endsAt,remaining:ui.timer.remaining,running:ui.timer.running}));else localStorage.removeItem('dayloom:timer');}catch(e){}}
+  function paintTimerDisplay(){const box=el('timerDisplay');if(!box)return;if(!ui.timer){box.innerHTML='<p class="form-tip">Pick a timer to begin. It keeps counting if you leave this tab, and it beeps and buzzes when each phase changes.</p>';return;}const t=ui.timer,phase=t.phases[t.index],secs=Math.max(0,Math.ceil((t.running?t.endsAt-Date.now():t.remaining)/1000));const mm=Math.floor(secs/60),ss=String(secs%60).padStart(2,'0');box.innerHTML=`<div class="timer-current"><strong>${escapeHtml(phase.label)}</strong><span class="timer-count" id="timerCountdown">${mm}:${ss}</span><span class="timer-meta">${escapeHtml(t.label)} · Phase ${t.index+1} of ${t.phases.length}</span></div><div class="setting-action"><button class="btn btn-primary" data-action="timer-pause">${t.running?'Pause':'Resume'}</button><button class="btn btn-danger-soft" data-action="timer-stop">Stop</button></div>`;}
+  function timerTick(){if(!ui.timer||!ui.timer.running)return;const remain=ui.timer.endsAt-Date.now();if(remain>0){const cd=el('timerCountdown');if(cd){const secs=Math.ceil(remain/1000);cd.textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;}return;}const t=ui.timer;t.index++;if(t.index>=t.phases.length){stopTimer(true);return;}beep(2);buzz(200);t.endsAt=Date.now()+t.phases[t.index].secs*1000;saveTimerState();paintTimerDisplay();}
+  function stopTimerSilent(){if(ui.timerTick){clearInterval(ui.timerTick);ui.timerTick=null;}ui.timer=null;}
+  function startTimer(preset){if(!['cardio','rest','plank'].includes(preset))return;stopTimerSilent();const phases=buildTimerPhases(preset);ui.timer={preset,label:timerLabel(preset),phases,index:0,endsAt:Date.now()+phases[0].secs*1000,remaining:phases[0].secs*1000,running:true};beep(1);saveTimerState();ui.timerTick=setInterval(timerTick,200);paintTimerDisplay();}
+  function pauseTimer(){if(!ui.timer)return;if(ui.timer.running){ui.timer.remaining=Math.max(0,ui.timer.endsAt-Date.now());ui.timer.running=false;if(ui.timerTick){clearInterval(ui.timerTick);ui.timerTick=null;}}else{ui.timer.endsAt=Date.now()+ui.timer.remaining;ui.timer.running=true;ui.timerTick=setInterval(timerTick,200);}saveTimerState();paintTimerDisplay();}
+  function stopTimer(finished){const had=!!ui.timer;stopTimerSilent();saveTimerState();if(finished&&had){beep(3);buzz([300,100,300]);notify('Timer done — nice work.');}paintTimerDisplay();}
+  function restoreTimer(){try{const raw=localStorage.getItem('dayloom:timer');if(!raw)return;const s=JSON.parse(raw);if(!s||!Array.isArray(s.phases)||!s.phases.length)return;if(s.running&&s.endsAt>Date.now()){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:s.endsAt,remaining:s.endsAt-Date.now(),running:true};ui.timerTick=setInterval(timerTick,200);}else if(!s.running&&s.remaining>0){ui.timer={preset:s.preset,label:timerLabel(s.preset),phases:s.phases,index:s.index||0,endsAt:0,remaining:s.remaining,running:false};}else localStorage.removeItem('dayloom:timer');}catch(e){}}
+  function workoutWeekRange(){const today=parseLocalDate(todayKey());const start=new Date(today);start.setDate(today.getDate()-((today.getDay()-data.settings.weekStart+7)%7)+(ui.workoutWeek||0)*7);const startKey=localDate(start);return {startKey,endKey:datePlus(startKey,6),label:`Week of ${dateLabel(startKey,{month:'short',day:'numeric'})}` };}
+  function renderWorkouts(){
+    const today=todayKey(),range=workoutWeekRange();
+    const wtasks=data.tasks.filter(t=>t.listId==='workouts');
+    const doneInRange=wtasks.filter(t=>t.completed&&t.completedAt&&localDate(new Date(t.completedAt))>=range.startKey&&localDate(new Date(t.completedAt))<=range.endKey).length;
+    const totalDone=wtasks.filter(t=>t.completed).length;
+    const todayList=sortTasks(wtasks.filter(t=>t.dueDate===today));
+    const todaySession=todayList[0];
+    const nextSession=!todaySession?sortTasks(wtasks.filter(t=>!t.completed&&t.dueDate>today))[0]:null;
+    const session=todaySession||nextSession;
+    const days=[];for(let i=0;i<7;i++){const date=datePlus(range.startKey,i);const d=parseLocalDate(date);const name=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];const st=wtasks.filter(t=>t.dueDate===date);const done=st.filter(t=>t.completed);const label=st.length?(done.length===st.length?'Done ✓':date===today?'Today':date<today?'Missed':'Scheduled'):'Rest';days.push({date,name,st,label});}
+    const weekRows=days.map(day=>{const s=day.st[0];return `<div class="workout-day ${day.date===today?'is-today':''}"><span class="workout-day-name">${day.name}<small>${dateLabel(day.date,{month:'short',day:'numeric'})}</small></span>${s?`<button class="workout-day-session" data-action="edit-task" data-id="${escapeHtml(s.id)}"><strong>${escapeHtml(s.title)}</strong><span class="${day.label.includes('Missed')?'overdue':''}">${day.label}</span></button>`:`<span class="workout-day-rest">Rest</span>`}</div>`;}).join('');
+    const planNotes=data.notes.filter(n=>n.folderId==='workouts');
+    return head('Workouts','Your training, in one place.',`<button class="btn btn-primary" data-action="new-task" data-list="workouts">${icon('plus')} New workout</button>`)+
+      `<div class="section-title"><h2>Timers</h2></div><div class="timer-presets"><button class="btn" data-action="timer-start" data-preset="cardio">${icon('clock')} Cardio intervals · 20 min</button><button class="btn" data-action="timer-start" data-preset="rest">${icon('clock')} Rest · 60 sec</button><button class="btn" data-action="timer-start" data-preset="plank">${icon('clock')} Plank · 40 sec</button></div><div id="timerDisplay"></div>`+
+      `<div class="section-title"><h2>${range.label}</h2><span>${doneInRange} done · ${totalDone} total</span><span class="week-nav"><button class="btn" data-action="workout-week" data-dir="-1">‹ Prev</button>${(ui.workoutWeek||0)!==0?`<button class="btn" data-action="workout-week" data-dir="0">This week</button>`:''}<button class="btn" data-action="workout-week" data-dir="1">Next ›</button></span></div><div class="workout-week">${weekRows}</div>`+
+      (session?section(todaySession?"Today's session":'Up next',[session],'No session today','Add a workout to get started.'):section("Today's session",[],'No session today','Add a workout to get started.'))+
+      (planNotes.length?`<div class="section-title"><h2>Plan & notes</h2></div><div class="notes-grid">${planNotes.map(noteCard).join('')}</div>`:'');
+  }
+  function updateGlobalSearch(){const q=(el('globalSearchInput')?.value||'').trim().toLowerCase();const box=el('globalSearchResults');if(!box)return;if(!q){box.innerHTML='<p class="form-tip">Type to search tasks, events, and notes.</p>';return;}const taskHits=data.tasks.filter(t=>(t.title+' '+t.notes).toLowerCase().includes(q)).slice(0,5);const eventHits=data.events.filter(e=>(e.title+' '+e.notes).toLowerCase().includes(q)).slice(0,5);const noteHits=data.notes.filter(n=>(n.title+' '+n.body).toLowerCase().includes(q)).slice(0,5);const group=(label,hits,kind)=>hits.length?`<div class="global-group"><h3>${label}</h3>${hits.map(h=>`<button class="global-result" data-action="global-open" data-kind="${kind}" data-id="${escapeHtml(h.id)}"><strong>${escapeHtml(h.title)}</strong><span>${kind==='task'?(getList(h.listId).name+(h.dueDate?' · '+dateLabel(h.dueDate):'')):kind==='event'?eventWhen(h):(data.noteFolders.find(f=>f.id===h.folderId)?.name||'Unfiled')}</span></button>`).join('')}</div>`:'';const html=group('Tasks',taskHits,'task')+group('Events',eventHits,'event')+group('Notes',noteHits,'note');box.innerHTML=html||'<p class="form-tip">Nothing found.</p>';}
   function render(){applySettings();renderNav();const m=el('mainContent');
-    m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='tasks'?renderTasks():ui.view==='lists'?renderLists():ui.view==='notes'?renderNotes():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
+    m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='workouts'?renderWorkouts():ui.view==='tasks'?renderTasks():ui.view==='lists'?renderLists():ui.view==='notes'?renderNotes():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
+    if(ui.view==='workouts')paintTimerDisplay();
     if(ui.view==='notes')updateNoteResults();
     if(ui.view==='calendar')updateEventSearchResults();
     if(ui.view==='tasks'){el('statusFilter').value=ui.taskStatus;el('listFilter').value=ui.taskList;el('priorityFilter').value=ui.taskPriority;updateTaskResults();}
@@ -445,35 +488,47 @@
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
   const paintTaskChecklist=()=>{const box=el('taskChecklist');if(!box)return;box.innerHTML=(ui.editChecklist||[]).map(s=>`<div class="checklist-edit-row" data-sub="${escapeHtml(s.id)}"><input class="field" maxlength="120" value="${escapeHtml(s.text)}" aria-label="Checklist step"><button type="button" class="btn btn-subtle" data-action="checklist-remove" data-sub="${escapeHtml(s.id)}">Remove</button></div>`).join('')||'<p class="form-tip">No steps yet — add one below.</p>';};
   const readEditorChecklist=()=>{const rows=[...document.querySelectorAll('#taskChecklist .checklist-edit-row')];return rows.map(row=>{const input=row.querySelector('input');const text=input?input.value.trim():'';const orig=(ui.editChecklist||[]).find(s=>s.id===row.dataset.sub);return {id:row.dataset.sub,text:text.slice(0,120),done:orig?orig.done:false};}).filter(s=>s.text);};
+  const paintRepeatDays=()=>{const box=el('repeatDaysRow');if(!box)return;const days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];box.innerHTML=days.map((d,i)=>`<button type="button" class="day-pill ${(ui.editRepeatDays||[]).includes(i)?'active':''}" data-action="repeat-day" data-day="${i}">${d}</button>`).join('');};
+  const toggleRepeatFields=()=>{const r=el('taskRepeat').value;const until=el('repeatUntilWrap'),days=el('repeatDaysWrap');if(until)until.hidden=r==='none';if(days)days.hidden=r!=='custom';};
   function openTask(id='',selectedDate='',listId=''){
     const task=data.tasks.find(t=>t.id===id);
     el('taskDialogTitle').textContent=task?'Edit task':'New task';el('taskId').value=task?.id||uuid();
     el('taskTitle').value=task?.title||'';el('taskDue').value=task?.dueDate||selectedDate||'';
     el('taskList').innerHTML=data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
-    el('taskList').value=task?.listId||listId||(ui.view.startsWith('list:')?ui.view.slice(5):'inbox');
+    el('taskList').value=task?.listId||listId||(ui.view.startsWith('list:')?ui.view.slice(5):ui.view==='workouts'?'workouts':'inbox');
     if(!el('taskList').value)el('taskList').value='inbox';
-    el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';el('taskReminder').value=task?.reminder||'';
+    el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';el('taskReminder').value=task?.reminder||'';el('taskRepeatUntil').value=task?.repeatUntil||'';ui.editRepeatDays=(task?.repeatDays||[]).slice();paintRepeatDays();toggleRepeatFields();
     ui.editChecklist=(task?.checklist||[]).map(s=>({...s}));paintTaskChecklist();
     ui.editMedia={kind:'task',ownerId:el('taskId').value,original:(task?.attachments||[]).map(a=>({...a})),items:(task?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview','taskVideoPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
   }
   function saveTask(event){event.preventDefault();
     const title=el('taskTitle').value.trim();if(!title){el('taskTitle').reportValidity();el('taskTitle').focus();return;}
+    if(el('taskRepeat').value==='custom'&&(ui.editRepeatDays||[]).length===0){notify('Pick at least one weekday for a custom repeat.',true);return;}
     const old=data.tasks.find(t=>t.id===el('taskId').value),now=new Date().toISOString();
-    const task={id:el('taskId').value||old?.id||uuid(),title:title.slice(0,160),notes:el('taskNotes').value.slice(0,4000),dueDate:validIsoDate(el('taskDue').value)?el('taskDue').value:'',listId:getList(el('taskList').value).id,priority:el('taskPriority').value,repeat:el('taskRepeat').value,completed:old?.completed||false,completedAt:old?.completedAt||'',checklist:readEditorChecklist(),reminder:validTime(el('taskReminder').value)?el('taskReminder').value:'',reminderNotified:(old&&old.reminder===el('taskReminder').value)?(old.reminderNotified||''):'' ,attachments:ui.editMedia&&ui.editMedia.ownerId===el('taskId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    const task={id:el('taskId').value||old?.id||uuid(),title:title.slice(0,160),notes:el('taskNotes').value.slice(0,4000),dueDate:validIsoDate(el('taskDue').value)?el('taskDue').value:'',listId:getList(el('taskList').value).id,priority:el('taskPriority').value,repeat:el('taskRepeat').value,repeatDays:el('taskRepeat').value==='custom'?(ui.editRepeatDays||[]).slice():[],repeatUntil:el('taskRepeat').value==='none'?'':(validIsoDate(el('taskRepeatUntil').value)?el('taskRepeatUntil').value:''),completed:old?.completed||false,completedAt:old?.completedAt||'',checklist:readEditorChecklist(),reminder:validTime(el('taskReminder').value)?el('taskReminder').value:'',reminderNotified:(old&&old.reminder===el('taskReminder').value)?(old.reminderNotified||''):'' ,attachments:ui.editMedia&&ui.editMedia.ownerId===el('taskId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
     if(ui.editMedia&&ui.editMedia.ownerId===el('taskId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old) data.tasks[data.tasks.indexOf(old)]=task;else data.tasks.push(task);
     persist();closeDialog('taskDialog');render();notify(old?'Task updated':'Task added');
   }
   function nextRepeatDate(t){const start=parseLocalDate(t.dueDate)||parseLocalDate(todayKey());const d=new Date(start);const current=parseLocalDate(todayKey());if(d<current)d.setTime(current.getTime());
-    const anchorDay=d.getDate();if(t.repeat==='daily')d.setDate(d.getDate()+1);else if(t.repeat==='weekly'){const weekday=start.getDay();const base=new Date(Math.max(start.getTime(),current.getTime()));let add=(weekday-base.getDay()+7)%7;if(add===0)add=7;base.setDate(base.getDate()+add);return localDate(base);}else if(t.repeat==='monthly'){d.setDate(1);d.setMonth(d.getMonth()+1);const max=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(anchorDay,max));}return localDate(d);
+    const anchorDay=d.getDate();let next='';
+    if(t.repeat==='daily'){d.setDate(d.getDate()+1);next=localDate(d);}
+    else if(t.repeat==='weekly'){const weekday=start.getDay();const base=new Date(Math.max(start.getTime(),current.getTime()));let add=(weekday-base.getDay()+7)%7;if(add===0)add=7;base.setDate(base.getDate()+add);next=localDate(base);}
+    else if(t.repeat==='monthly'){d.setDate(1);d.setMonth(d.getMonth()+1);const max=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(anchorDay,max));next=localDate(d);}
+    else if(t.repeat==='custom'&&Array.isArray(t.repeatDays)&&t.repeatDays.length){const base=new Date(Math.max(start.getTime(),current.getTime()));for(let add=1;add<=7;add++){const cand=new Date(base);cand.setDate(base.getDate()+add);if(t.repeatDays.includes(cand.getDay())){next=localDate(cand);break;}}}
+    if(!next)return '';
+    if(t.repeatUntil&&next>t.repeatUntil)return null;
+    return next;
   }
   function toggleTask(id){const t=data.tasks.find(x=>x.id===id);if(!t)return;
     const wasCompleted=t.completed;t.completed=!t.completed;t.completedAt=t.completed?new Date().toISOString():'';t.updatedAt=new Date().toISOString();
     if(!wasCompleted&&t.completed&&t.repeat!=='none'){
       const nextDate=nextRepeatDate(t);const now=new Date().toISOString();
-      data.tasks.push({...t,id:uuid(),dueDate:nextDate,completed:false,completedAt:'',createdAt:now,updatedAt:now,checklist:(t.checklist||[]).map(s=>({...s,done:false})),attachments:[],reminderNotified:''});
-      notify(`Done! Next ${t.repeat} task: ${dateLabel(nextDate)}`);
+      if(nextDate){
+        data.tasks.push({...t,id:uuid(),dueDate:nextDate,completed:false,completedAt:'',createdAt:now,updatedAt:now,checklist:(t.checklist||[]).map(s=>({...s,done:false})),attachments:[],reminderNotified:''});
+        notify(`Done! Next ${t.repeat} task: ${dateLabel(nextDate)}`);
+      } else notify('Task completed ✨');
     } else notify(t.completed?'Task completed ✨':'Task marked active');
     persist();render();
   }
@@ -663,6 +718,12 @@
     else if(a==='enable-reminders'){if(typeof Notification==='undefined'){notify('This browser does not support notifications.',true);return;}Notification.requestPermission().then(p=>{notify(p==='granted'?'Reminders on — Dayloom will ping you when a task is due.':p==='denied'?'Notifications are blocked for this site. You can allow them in your browser settings.':'Notifications not enabled.');render();});}
     else if(a==='media-add'){const input=el(button.dataset.kind+'MediaInput');if(input)input.click();}
     else if(a==='media-remove'){if(ui.editMedia){ui.editMedia.items=ui.editMedia.items.filter(i=>i.id!==button.dataset.id);paintEditorMedia();}}
+    else if(a==='repeat-day'){const day=Number(button.dataset.day);if(Number.isInteger(day)&&day>=0&&day<=6){ui.editRepeatDays=ui.editRepeatDays||[];const i=ui.editRepeatDays.indexOf(day);if(i>=0)ui.editRepeatDays.splice(i,1);else ui.editRepeatDays.push(day);paintRepeatDays();}}
+    else if(a==='workout-week'){const dir=button.dataset.dir;ui.workoutWeek=dir==='0'?0:(ui.workoutWeek||0)+Number(dir);render();}
+    else if(a==='timer-start'){startTimer(button.dataset.preset);}
+    else if(a==='timer-pause'){pauseTimer();}
+    else if(a==='timer-stop'){stopTimer(false);}
+    else if(a==='global-open'){closeDialog('globalSearchDialog');if(button.dataset.kind==='task')openTask(button.dataset.id);else if(button.dataset.kind==='event')openEvent(button.dataset.id);else if(button.dataset.kind==='note')openNote(button.dataset.id);}
     else if(a==='selection-cancel'){ui.selection=null;render();}
     else if(a==='selection-delete'){bulkDelete();}
     else if(a==='selection-move'){bulkMove();}
@@ -703,6 +764,8 @@
     else if(id==='eventMediaInput')addMedia('event',e.target);
     else if(id==='noteMediaInput')addMedia('note',e.target);
     else if(id==='eventAllDay')toggleEventTimes();
+    else if(id==='taskRepeat')toggleRepeatFields();
+    else if(id==='globalSearchInput')updateGlobalSearch();
     else if(id==='eventStart'&&!el('eventId').value&&(!el('eventEnd').value||el('eventEnd').value<value))el('eventEnd').value=value;
   });
   document.querySelectorAll('dialog').forEach(dialog=>dialog.addEventListener('click',e=>{if(e.target===dialog)closeDialog(dialog.id);}));
@@ -714,11 +777,11 @@
   el('importConfirm').addEventListener('click',confirmImport);
   el('headerAdd').addEventListener('click',()=>openTask());el('headerAddNote').addEventListener('click',()=>openNote());el('headerAddEvent').addEventListener('click',()=>openEvent('',ui.view==='calendar'?ui.selectedDate:todayKey()));
   el('mobileAdd').addEventListener('click',()=>ui.view==='calendar'?openEvent('',ui.selectedDate):ui.view==='notes'?openNote():openTask());
-  el('searchFocusBtn').addEventListener('click',()=>{navigate('tasks');el('taskSearch')?.focus();});
+  el('searchFocusBtn').addEventListener('click',()=>{el('globalSearchInput').value='';openDialog('globalSearchDialog');updateGlobalSearch();setTimeout(()=>el('globalSearchInput')?.focus(),25);});
   el('brandLink').addEventListener('click',e=>{e.preventDefault();navigate('today');});
   window.addEventListener('hashchange',()=>{const next=decodeURIComponent(location.hash.slice(1))||'today';if(next!==ui.view){ui.view=next;ui.selection=null;render();}});
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(data.settings.theme==='system')applySettings();});
   const initial=decodeURIComponent(location.hash.slice(1));if(views.some(v=>v.id===initial)||(initial.startsWith('list:')&&data.lists.some(l=>'list:'+l.id===initial)))ui.view=initial;
-  render();checkReminders();setInterval(checkReminders,60000);if(storageIssue)notify('Saved data could not be loaded. Export backups regularly.',true);
+  restoreTimer();render();checkReminders();setInterval(checkReminders,60000);if(storageIssue)notify('Saved data could not be loaded. Export backups regularly.',true);
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();

@@ -178,3 +178,31 @@
 .video-preview:empty{display:none}
 .video-embed{position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000}
 .video-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+.day-picker{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.day-pill{min-height:38px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface-alt);color:var(--text);font-weight:700;font-size:12px}
+.day-pill.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.workout-week{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
+.workout-day{display:flex;align-items:center;gap:13px;padding:13px 17px;border-bottom:1px solid var(--line)}
+.workout-day:last-child{border-bottom:0}
+.workout-day.is-today{background:var(--accent-soft)}
+.workout-day-name{font-weight:700;font-size:13px;min-width:64px}
+.workout-day-name small{display:block;color:var(--muted);font-weight:500;font-size:11px}
+.workout-day-session{border:0;background:transparent;text-align:left;flex:1;min-width:0;color:var(--text);display:flex;justify-content:space-between;gap:10px;align-items:center}
+.workout-day-session strong{font-size:13px}
+.workout-day-session span{font-size:11px;color:var(--muted);white-space:nowrap}
+.workout-day-session span.overdue{color:var(--danger)}
+.workout-day-rest{color:var(--muted);font-size:12px}
+.week-nav{display:flex;gap:8px}
+.week-nav .btn{min-height:34px;padding:6px 11px}
+.timer-presets{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.timer-current{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:19px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.timer-current strong{font-size:17px}
+.timer-count{font-size:44px;font-weight:800;letter-spacing:-1px;line-height:1}
+.timer-meta{color:var(--muted);font-size:12px}
+.global-group{margin-top:16px}
+.global-group h3{font-size:12px;letter-spacing:1.2px;color:var(--muted);margin:0 0 8px}
+.global-result{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;border:1px solid var(--line);background:var(--surface-alt);border-radius:12px;padding:11px 13px;margin-bottom:8px;color:var(--text);text-align:left}
+.global-result strong{font-size:13px}
+.global-result span{font-size:11px;color:var(--muted)}
+.mobile-nav button{min-width:0;flex:1}

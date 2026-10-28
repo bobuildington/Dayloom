@@ -19,6 +19,11 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - What you missed actions: move everything overdue to today in one tap, or select and delete the batch.
 - Reminders: set a time on a task and get a ping when it's due. Works while Dayloom is open — no account or server needed.
 - Photos & videos: attach pictures and clips to tasks, events, and notes. They live in this browser only and aren't included in JSON backups.
+- Workouts tab: a dedicated view for training — this week's sessions with Done / Today / Missed states, week-by-week browsing, today's session with tickable checklists, plan notes, and timers that live only on this tab.
+- Timers: Cardio intervals (5 min warm up, 8 rounds of 30 sec hard / 60 sec easy, 3 min cool down), Rest (60 sec), and Plank (40 sec), with a beep and a buzz on every phase change. A timer keeps counting if you leave the tab and survives a reload.
+- Custom weekday repeats: repeat a task on specific weekdays (for example Mon, Wed, Fri) instead of one task per day.
+- Repeat end dates: set a task to stop repeating after a date.
+- Global search: the header search button now searches tasks, events, and notes together, on phone and desktop.
 - Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards
