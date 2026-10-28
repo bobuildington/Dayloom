@@ -10,6 +10,35 @@
   const el = id => document.getElementById(id);
   const icon = name => `<svg aria-hidden="true"><use href="#i-${name}"></use></svg>`;
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // Extract safe HTTP(S) addresses; escape all displayed values before inserting HTML.
+  function webLinks(values,limit=4){
+    const entries=[],seen=new Set(),urlPattern=/(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+    for(const text of values){
+      for(const match of String(text??'').matchAll(urlPattern)){
+        let candidate=match[0].replace(/[.,!?;:\x60]+$/g,'');
+        for(const [open,close] of [['(',')'],['[',']'],['{','}']]){
+          while(candidate.endsWith(close)&&candidate.split(close).length>candidate.split(open).length)candidate=candidate.slice(0,-1);
+        }
+        if(!candidate||candidate.length>2048)continue;
+        try{
+          const url=new URL(/^www\./i.test(candidate)?'https://'+candidate:candidate);
+          if(!['http:','https:'].includes(url.protocol)||!url.hostname||url.username||url.password||seen.has(url.href))continue;
+          seen.add(url.href);entries.push({href:url.href,label:candidate});
+        }catch{ /* Ignore malformed URLs. */ }
+      }
+    }
+    if(!entries.length)return '';
+    return '<div class="item-link-bar" aria-label="Web links">'+entries.slice(0,limit).map(link=>
+      '<a class="smart-link" href="'+escapeHtml(link.href)+'" target="_blank" rel="noopener noreferrer" title="'+escapeHtml(link.label)+'" aria-label="Open '+escapeHtml(link.label)+' in a new tab">'+icon('arrow')+'<span>'+escapeHtml(link.label)+'</span></a>'
+    ).join('')+(entries.length>limit?'<span class="link-extra">+'+(entries.length-limit)+' more in editor</span>':'')+'</div>';
+  }
+  function refreshWebLinks(contentId,titleId,previewId){
+    const preview=el(previewId);
+    if(!preview)return;
+    preview.innerHTML=webLinks([el(titleId).value,el(contentId).value],16);
+    preview.hidden=!preview.innerHTML;
+  }
   const uuid = () => crypto.randomUUID ? crypto.randomUUID() : 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
   const localDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const parseLocalDate = value => { if(!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null; const [y,m,d]=value.split('-').map(Number); const result=new Date(y,m-1,d); return result.getFullYear()===y && result.getMonth()===m-1 && result.getDate()===d ? result : null; };
@@ -120,7 +149,7 @@
     if(t.dueDate)meta.push(`<span class="${overdue?'overdue':''}">${icon('calendar')} ${t.dueDate===todayKey()?'Today':dateLabel(t.dueDate)}</span>`);
     if(t.priority!=='none')meta.push(`<span class="priority-${t.priority}">${escapeHtml(t.priority)} priority</span>`);
     if(t.repeat!=='none')meta.push(`<span>↻ ${escapeHtml(t.repeat)}</span>`);
-    return `<div class="task-row ${t.completed?'completed':''}"><button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
+    return `<div class="task-row ${t.completed?'completed':''}"><button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><div class="task-main"><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button>${webLinks([t.title,t.notes])}</div><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
   }
   function taskStack(tasks,title='Nothing here yet',message='Your tasks will show up here.',action='new-task'){
     return `<div class="task-stack">${tasks.length?sortTasks(tasks).map(taskRow).join(''):empty(title,message,action)}</div>`;
@@ -160,7 +189,7 @@
   }
   function eventRow(e){
     const repeat=e.repeat!=='none'?`<span>↻ Every ${escapeHtml(e.repeat==='daily'?'day':e.repeat==='weekly'?'week':e.repeat==='monthly'?'month':'year')}</span>`:'';
-    return `<button class="event-row" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>`;
+    return `<div class="event-row"><button class="event-row-open" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>${webLinks([e.title,e.notes])}</div>`;
   }
   function eventStack(events,emptyText='No events on this day.'){
     return `<div class="event-stack">${events.length?events.map(eventRow).join(''):`<div class="event-empty">${escapeHtml(emptyText)}</div>`}</div>`;
@@ -177,7 +206,7 @@
     el('eventStartTime').value=e?.startTime||'09:00';el('eventEndTime').value=e?.endTime||'10:00';
     el('eventRepeat').value=e?.repeat||'none';el('eventNotes').value=e?.notes||'';
     ui.selectedEventColor=e?.color||data.settings.accent;paintEventColors();toggleEventTimes();
-    el('eventDelete').hidden=!e;openDialog('eventDialog');setTimeout(()=>el('eventTitle').focus(),25);
+    el('eventDelete').hidden=!e;refreshWebLinks('eventNotes','eventTitle','eventLinkPreview');openDialog('eventDialog');setTimeout(()=>el('eventTitle').focus(),25);
   }
   function saveEvent(evt){
     evt.preventDefault();const title=el('eventTitle').value.trim();if(!title){el('eventTitle').reportValidity();el('eventTitle').focus();return;}
@@ -279,7 +308,7 @@
   function noteCard(n){
     const summary=n.body.trim().replace(/\s+/g,' ').slice(0,240);
     const folder=data.noteFolders.find(f=>f.id===n.folderId);
-    return `<button class="note-card" data-action="edit-note" data-id="${escapeHtml(n.id)}" style="--note-color:${n.color}"><span class="note-card-top"><span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span></button>`;
+    return `<article class="note-card" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top"><span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span></button>${webLinks([n.title,n.body])}</article>`;
   }
   function noteFolderControls(){
     const count=id=>data.notes.filter(n=>id==='all'||(id==='unfiled'?!n.folderId:n.folderId===id)).length;
@@ -310,7 +339,7 @@
     el('noteFolder').innerHTML='<option value="">Unfiled</option>'+data.noteFolders.map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
     ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;
-    openDialog('noteDialog');setTimeout(()=>el('noteTitle').focus(),25);
+    refreshWebLinks('noteBody','noteTitle','noteLinkPreview');openDialog('noteDialog');setTimeout(()=>el('noteTitle').focus(),25);
   }
   function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
@@ -369,7 +398,7 @@
     el('taskList').value=task?.listId||listId||(ui.view.startsWith('list:')?ui.view.slice(5):'inbox');
     if(!el('taskList').value)el('taskList').value='inbox';
     el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';
-    el('taskDelete').hidden=!task;openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
+    el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
   }
   function saveTask(event){event.preventDefault();
     const title=el('taskTitle').value.trim();if(!title){el('taskTitle').reportValidity();el('taskTitle').focus();return;}
@@ -570,7 +599,7 @@
     else if(a==='clear-all'){if(confirm('Erase all Dayloom data on this device? This cannot be undone.')&&prompt('Type ERASE to confirm:')==='ERASE'){data=defaultData();ui.selectedDate=todayKey();persist();navigate('today');notify('Your local data has been erased.');}}
   }
   document.addEventListener('click',e=>{const close=e.target.closest('[data-close]');if(close){closeDialog(close.dataset.close);return;}const action=e.target.closest('[data-action]');if(action)handleAction(action);});
-  document.addEventListener('input',e=>{if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
+  document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}});
   document.addEventListener('change',e=>{const id=e.target.id,value=e.target.value;
