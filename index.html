@@ -18,6 +18,7 @@
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
     <symbol id="i-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 4-4M13 7h8M4 17l2 2 4-4M13 17h8"/></symbol>
     <symbol id="i-layers" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h7"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1.2 1.6v.08h-4v-.08A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-1.2-1.2h-.08v-4H3A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1.2-1.2v-.08h4V3A1.7 1.7 0 0 0 15 4.2a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 1.2 1.2h.08v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
@@ -57,6 +58,7 @@
         <div class="topbar-actions">
           <button class="icon-button desktop-search-button" id="searchFocusBtn" aria-label="Find tasks"><svg><use href="#i-search"/></svg></button>
           <button class="btn header-add header-event" id="headerAddEvent" hidden><svg><use href="#i-calendar"/></svg><span>New event</span></button>
+          <button class="btn btn-primary header-add" id="headerAddNote" hidden><svg><use href="#i-plus"/></svg><span>New note</span></button>
           <button class="btn btn-primary header-add" id="headerAdd"><svg><use href="#i-plus"/></svg><span>New task</span></button>
         </div>
       </header>
@@ -112,6 +114,32 @@
     </form>
   </dialog>
 
+  <dialog id="noteDialog" class="modal note-modal" aria-labelledby="noteDialogTitle">
+    <form id="noteForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">YOUR NOTEBOOK</div><h2 id="noteDialogTitle">New note</h2></div><button class="icon-button" type="button" data-close="noteDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="noteId">
+        <label class="field-label" for="noteTitle">Title <span class="required">*</span></label>
+        <input id="noteTitle" class="field" maxlength="160" required placeholder="An idea worth keeping...">
+        <label class="field-label" for="noteFolder">Folder</label>
+        <select id="noteFolder" class="field"><option value="">Unfiled</option></select>
+        <label class="field-label" for="noteBody">Your note</label>
+        <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea>
+        <label class="event-check"><input id="notePinned" type="checkbox"><span>Pin to the top</span></label>
+        <label class="field-label">Note color</label><div id="noteColorPalette" class="color-palette"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="noteDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="noteDialog">Cancel</button><button class="btn btn-primary" type="submit">Save note</button></div></div>
+    </form>
+  </dialog>
+
+  <dialog id="folderDialog" class="modal list-modal" aria-labelledby="folderDialogTitle">
+    <form id="folderForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">YOUR NOTEBOOK</div><h2 id="folderDialogTitle">New folder</h2></div><button class="icon-button" type="button" data-close="folderDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body"><input type="hidden" id="folderId"><label class="field-label" for="folderName">Folder name <span class="required">*</span></label><input class="field" id="folderName" maxlength="60" placeholder="e.g. Journal, Work, Ideas" required><label class="field-label">Folder color</label><div class="color-palette" id="folderColorPalette"></div><p class="form-tip">Deleting a folder moves its notes to Unfiled. No notes are deleted.</p></div>
+      <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="folderDelete" hidden>Delete folder</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="folderDialog">Cancel</button><button class="btn btn-primary" type="submit">Save folder</button></div></div>
+    </form>
+  </dialog>
+
   <dialog id="listDialog" class="modal list-modal" aria-labelledby="listDialogTitle">
     <form id="listForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">ORGANIZE</div><h2 id="listDialogTitle">New list</h2></div><button class="icon-button" type="button" data-close="listDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
@@ -122,10 +150,11 @@
 
   <dialog id="importDialog" class="modal list-modal" aria-labelledby="importDialogTitle">
     <div class="modal-header"><div><div class="eyebrow">RESTORE YOUR DATA</div><h2 id="importDialogTitle">Import backup</h2></div><button class="icon-button" type="button" data-close="importDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body"><p class="import-message" id="importSummary"></p><div class="import-choices"><label class="choice-card"><input type="radio" name="importMode" value="merge" checked><span><strong>Merge with my data</strong><small>Keep current tasks and add backup items. For matching items, use the most recently edited version.</small></span></label><label class="choice-card"><input type="radio" name="importMode" value="replace"><span><strong>Replace everything</strong><small>Overwrite current tasks, lists, and preferences with this backup.</small></span></label></div></div>
+    <div class="modal-body"><p class="import-message" id="importSummary"></p><div class="import-choices"><label class="choice-card"><input type="radio" name="importMode" value="merge" checked><span><strong>Merge with my data</strong><small>Keep current data and add backup items. For matching items, use the most recently edited version.</small></span></label><label class="choice-card"><input type="radio" name="importMode" value="replace"><span><strong>Replace everything</strong><small>Overwrite local tasks, events, notes, folders, lists and settings with this backup.</small></span></label></div></div>
     <div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="importDialog">Cancel</button><button type="button" id="importConfirm" class="btn btn-primary">Import backup</button></div></div>
   </dialog>
   <input type="file" id="importFile" hidden accept=".json,application/json">
+  <input type="file" id="icsFile" hidden accept=".ics,text/calendar">
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="./app.js" defer></script>
 </body>
