@@ -121,3 +121,25 @@
  .note-folder-select span{max-width:95px}.note-folder-select small{font-size:10px}
  .note-folder-edit{width:30px;min-height:38px}.notes-content{width:100%}.note-head-actions .btn{flex:1}
 }
+
+/* Links in tasks, notes and calendar events: separate controls prevent accidental edits. */
+.task-main{flex:1;min-width:0;display:flex;flex-direction:column;align-items:stretch}
+.task-main .task-open{flex:auto;width:100%}
+.item-link-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;min-width:0;margin-top:7px}
+.smart-link{display:inline-flex;gap:5px;align-items:center;min-width:0;max-width:100%;padding:5px 8px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));border-radius:8px;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:650;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere;word-break:break-word}
+.smart-link:hover{filter:brightness(.95);text-decoration:none}
+.smart-link svg{width:12px;height:12px;flex:none}
+.smart-link span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:min(280px,60vw)}
+.link-extra{font-size:11px;color:var(--muted)}
+.event-row{flex-direction:column;align-items:stretch;gap:0}
+.event-row-open{width:100%;padding:0;background:transparent;border:0;color:inherit;text-align:left;display:flex;gap:13px;align-items:center;min-height:40px}
+.event-row-open>svg{color:var(--muted);height:16px;width:16px}
+.event-row .item-link-bar{margin:7px 0 0 22px}
+.note-card-open{width:100%;display:flex;flex-direction:column;align-items:stretch;gap:12px;text-align:left;background:transparent;color:inherit;border:0;padding:0;min-width:0}
+.note-card-open:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.note-card-open>strong{font-size:17px;letter-spacing:-.2px;overflow-wrap:anywhere}
+.note-card .item-link-bar{margin-top:auto}
+.editor-link-preview{margin:9px 0 4px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--surface-alt)}
+.editor-link-preview::before{content:'Tap to open links';display:block;font-size:11px;font-weight:750;color:var(--muted);margin-bottom:3px}
+.editor-link-preview .smart-link{font-size:12px;max-width:100%}
+@media(max-width:720px){.note-card-open{gap:9px}.note-card-open>strong{font-size:14px}.smart-link{padding:7px 9px;min-height:34px}.event-row .item-link-bar{margin-left:0}}
