@@ -27,3 +27,97 @@
   .agenda-actions{width:100%}.agenda-actions .btn{flex:1;min-height:43px}
   .event-row{min-height:70px;padding:12px 13px}
 }
+
+/* Dayloom v3 — calendar views, notes, transfer */
+.calendar-tools{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:4px 0 14px}
+.mode-switch{display:inline-flex;padding:4px;gap:3px;border-radius:13px;background:var(--surface);border:1px solid var(--line)}
+.mode-switch .option-pill{border:0;min-width:64px;border-radius:9px}
+.calendar-file-actions{display:flex;gap:7px;flex-wrap:wrap}
+.calendar-file-actions .btn{min-height:39px;padding:7px 12px}
+.calendar-search{margin:0 0 15px}.calendar-search .search-wrap{flex:1}
+#eventSearchResults{margin:0 0 17px}#eventSearchResults .section-title{margin-top:0}
+.found-event{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);padding-left:14px}
+.found-event:last-child{border-bottom:none}.found-event-date{font-size:11px;color:var(--muted);min-width:66px}
+.found-event .event-row{border:0;flex:1}
+.week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line);min-height:270px}
+.week-day{border-right:1px solid var(--line);min-width:0;display:flex;flex-direction:column;padding:6px;gap:9px}
+.week-day:last-child{border:0}.week-day.is-selected{background:var(--accent-soft)}
+.week-day-head{border:0;background:transparent;color:var(--text);display:flex;flex-direction:column;align-items:center;gap:6px;width:100%;padding:8px 3px}
+.week-day-head span{font-size:10px;color:var(--muted);font-weight:650}
+.week-day-head strong{font-size:17px;font-weight:750;border-radius:50%;height:32px;width:32px;display:grid;place-items:center}
+.week-day.is-today .week-day-head strong{background:var(--accent);color:#fff}
+.week-day-items{display:flex;flex-direction:column;gap:6px;min-height:65px;flex:1}
+.week-chip{min-height:37px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:2px;text-align:left;padding:6px;border:0;border-radius:7px;border-left:3px solid var(--event-color,var(--accent));background:color-mix(in srgb,var(--event-color,var(--accent)) 14%,var(--surface));color:var(--text);font-size:10px;overflow-wrap:anywhere}
+.week-chip strong{font-size:10px}.week-chip small{color:var(--muted);font-size:9px}.week-chip.task{background:var(--surface-alt);border-left-color:var(--muted)}
+.week-quiet{font-size:10px;color:var(--muted);text-align:center;padding:12px 0}
+.week-add{background:transparent;color:var(--accent);border:1px dashed var(--line);border-radius:8px;min-height:30px;font-size:11px;font-weight:700}
+.day-planner{padding:10px 15px 20px;display:grid;gap:15px}
+.day-all-day{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;border-bottom:1px solid var(--line);padding:10px 0 18px}
+.day-side-label{font-size:11px;font-weight:700;color:var(--muted);padding:13px 0}
+.day-all-items{display:grid;gap:7px}.day-all-items .event-row,.day-all-items .task-row{border:1px solid var(--line);border-radius:12px}
+.day-quiet{color:var(--muted);font-size:12px;margin:10px 0}
+.day-hour{display:grid;grid-template-columns:92px minmax(0,1fr);gap:12px;min-height:61px;border-top:1px solid var(--line);padding:10px 0}
+.day-hour-time{font-size:11px;font-weight:650;color:var(--muted);padding:1px 2px;text-align:right}
+.day-hour-items{display:flex;flex-direction:column;gap:5px}.day-hour-items .event-row{border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;min-height:52px}
+.notes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;align-items:start}
+.note-card{display:flex;flex-direction:column;gap:12px;align-items:stretch;text-align:left;min-height:170px;border:1px solid var(--line);border-top:4px solid var(--note-color);border-radius:15px;background:var(--surface);padding:17px;color:var(--text);box-shadow:var(--shadow)}
+.note-card:focus-visible,.week-chip:focus-visible,.week-day-head:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note-card:hover{border-color:var(--note-color)}
+.note-card-top{display:flex;justify-content:space-between;gap:9px;color:var(--muted);font-size:10px}
+.note-pin{color:var(--note-color);font-weight:750}.note-card>strong{font-size:17px;letter-spacing:-.2px;overflow-wrap:anywhere}
+.note-preview{font-size:12px;line-height:1.6;color:var(--muted);display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.note-modal{width:min(650px,calc(100% - 22px))}.note-editor{min-height:230px;line-height:1.55;resize:vertical}
+@media(max-width:1000px){.week-day{padding:3px}.week-chip{padding:5px}.week-day-head strong{height:28px;width:28px}}
+@media(max-width:720px){
+ .mobile-nav{padding-left:3px;padding-right:3px;gap:0}
+ .mobile-nav button{min-width:0;flex:1;font-size:9px;padding:0 1px;gap:4px}
+ .mobile-nav svg{height:19px;width:19px}
+ .calendar-tools{align-items:stretch}.mode-switch{width:100%;justify-content:space-around}.mode-switch .option-pill{flex:1}
+ .calendar-file-actions{width:100%}.calendar-file-actions .btn{flex:1;font-size:11px}
+ .calendar-search{margin-bottom:10px}
+ .week-grid{display:flex;flex-direction:column;min-height:0}
+ .week-day{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:stretch;gap:7px;padding:10px}
+ .week-day:last-child{border:0}
+ .week-day-head{width:58px;flex:none;justify-content:flex-start;padding:8px 0}
+ .week-day-head strong{font-size:18px}
+ .week-day-items{min-height:40px;flex:1;padding:4px 0}
+ .week-quiet{text-align:left;padding:8px 0}.week-chip{font-size:12px;min-height:39px;padding:7px 10px}
+ .week-chip strong{font-size:12px}.week-chip small{font-size:10px}
+ .week-add{width:50px;align-self:center;flex:none;font-size:10px}
+ .day-planner{padding:8px 9px 16px}.day-all-day,.day-hour{grid-template-columns:57px minmax(0,1fr);gap:7px}
+ .day-hour-time,.day-side-label{font-size:10px}.day-all-day .task-row{min-width:0}
+ .notes-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.note-card{padding:12px;min-height:150px;gap:9px}
+ .note-card>strong{font-size:14px}.note-preview{font-size:11px;-webkit-line-clamp:5}
+ .note-modal{width:100%}.note-editor{min-height:190px}
+ .found-event{gap:3px;padding-left:7px}.found-event-date{min-width:58px;font-size:10px}
+}
+@media(max-width:360px){.notes-grid{grid-template-columns:1fr}.mobile-nav button{font-size:8px}.mode-switch .option-pill{min-width:0}}
+
+/* Notes folders: responsive master/detail notebook. */
+.note-head-actions{display:flex;gap:8px;flex-wrap:wrap}
+.notes-workspace{display:grid;grid-template-columns:minmax(190px,235px) minmax(0,1fr);gap:18px;align-items:start}
+.note-folders{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:12px;box-shadow:var(--shadow)}
+.note-folder-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 3px 10px}
+.note-folder-top strong{font-size:13px}.note-folder-top .btn{font-size:12px;min-height:32px;padding:5px 9px}
+.note-folder-list{display:flex;flex-direction:column;gap:4px}
+.note-folder-item{display:flex;align-items:stretch;gap:3px;min-width:0}
+.note-folder-select{display:flex;align-items:center;gap:9px;min-height:39px;width:100%;min-width:0;text-align:left;border:1px solid transparent;background:transparent;border-radius:9px;color:var(--text);padding:7px 9px;font-size:13px;cursor:pointer}
+.note-folder-select.active{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.note-folder-select:hover{background:var(--surface-alt)}.note-folder-select.active:hover{background:var(--accent-soft)}
+.note-folder-select i,.note-folder-pill i{width:9px;height:9px;border-radius:50%;flex:none}
+.note-folder-select span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-folder-select small{font-size:11px;color:var(--muted);font-weight:600}
+.note-folder-edit{flex:none;width:34px;border:0;background:transparent;color:var(--muted);border-radius:8px;cursor:pointer;display:grid;place-items:center}
+.note-folder-edit svg{width:15px;height:15px}.note-folder-edit:hover{color:var(--accent);background:var(--surface-alt)}
+.note-folder-edit:focus-visible,.note-folder-select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.notes-content{min-width:0}.notes-content-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.notes-content-head h2{font-size:17px;overflow-wrap:anywhere}.notes-content-head span{font-size:11px;color:var(--muted);text-align:right}
+.note-folder-pill{display:inline-flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;margin-top:auto}
+@media(max-width:900px){.notes-workspace{grid-template-columns:minmax(155px,195px) minmax(0,1fr);gap:10px}}
+@media(max-width:720px){
+ .notes-workspace{display:flex;flex-direction:column;gap:14px}.note-folders{width:100%;min-width:0;padding:9px}
+ .note-folder-top{padding:0 4px 6px}.note-folder-list{flex-direction:row;overflow-x:auto;gap:5px;padding-bottom:5px;scrollbar-width:thin}
+ .note-folder-item{flex:none;max-width:185px}.note-folder-select{min-height:38px;max-width:145px;width:auto;padding:6px 10px;white-space:nowrap;font-size:12px;gap:7px}
+ .note-folder-select span{max-width:95px}.note-folder-select small{font-size:10px}
+ .note-folder-edit{width:30px;min-height:38px}.notes-content{width:100%}.note-head-actions .btn{flex:1}
+}
