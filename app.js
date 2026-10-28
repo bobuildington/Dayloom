@@ -175,7 +175,8 @@
     const old=data.events.find(e=>e.id===el('eventId').value),now=new Date().toISOString();
     const entry={id:old?.id||uuid(),title:title.slice(0,160),notes:el('eventNotes').value.slice(0,4000),startDate,endDate,allDay,startTime:validTime(startTime)?startTime:'09:00',endTime:validTime(endTime)?endTime:'10:00',repeat,color:ui.selectedEventColor,createdAt:old?.createdAt||now,updatedAt:now};
     if(old)data.events[data.events.indexOf(old)]=entry;else data.events.push(entry);
-    ui.selectedDate=startDate;const selected=parseLocalDate(startDate);ui.month=selected.getMonth();ui.year=selected.getFullYear();
+    const targetDate=old&&ui.view==='calendar'&&eventAtDate(entry,ui.selectedDate)?ui.selectedDate:startDate;
+    ui.selectedDate=targetDate;const selected=parseLocalDate(targetDate);ui.month=selected.getMonth();ui.year=selected.getFullYear();
     persist();closeDialog('eventDialog');render();notify(old?'Event updated':'Event added to calendar');
   }
   function deleteEvent(){const id=el('eventId').value;if(!id)return;
@@ -300,7 +301,7 @@
     else if(a==='edit-list')openList(id);
     else if(a==='list-color'){ui.selectedListColor=button.dataset.value;paintListColors();}
     else if(a==='calendar-today'){ui.selectedDate=todayKey();const d=parseLocalDate(ui.selectedDate);ui.month=d.getMonth();ui.year=d.getFullYear();render();}
-    else if(a==='prev-month'||a==='next-month'){const d=new Date(ui.year,ui.month+(a==='next-month'?1:-1),1);ui.year=d.getFullYear();ui.month=d.getMonth();render();}
+    else if(a==='prev-month'||a==='next-month'){const d=new Date(ui.year,ui.month+(a==='next-month'?1:-1),1);ui.year=d.getFullYear();ui.month=d.getMonth();ui.selectedDate=localDate(d);render();}
     else if(a==='select-day'){ui.selectedDate=button.dataset.date;const d=parseLocalDate(ui.selectedDate);ui.month=d.getMonth();ui.year=d.getFullYear();render();}
     else if(a==='setting'){setSetting(button.dataset.setting,button.dataset.value);}
     else if(a==='export')exportBackup();
