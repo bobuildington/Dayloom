@@ -13,6 +13,7 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Daily, weekly and monthly repeats: completing a repeating task creates its next occurrence (weekly repeats always land on the same weekday, even if you complete the task late)
 - Custom task lists with names and colors, task search, and status/list/priority filters
 - What you missed: overdue tasks on the Today dashboard and a Missed filter in All tasks, so you can check off, reschedule, or delete them
+- Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards
 - iCalendar **`.ics` event export/import** for transfer with other calendar applications

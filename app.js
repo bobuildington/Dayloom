@@ -114,7 +114,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null};
   let toastTimer;
   function notify(message,error=false){const node=el('toast'); node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -125,7 +125,7 @@
     document.documentElement.style.setProperty('--accent-soft',dark?'#30304a':'color-mix(in srgb, '+validColor(s.accent)+' 11%, white)');
     const themeTag=document.querySelector('meta[name="theme-color"]');if(themeTag)themeTag.content=dark?'#1e2031':'#f6f7fb';
   }
-  function navigate(view){location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
+  function navigate(view){location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
   const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'lists',text:'My lists',icon:'layers'},{id:'notes',text:'Notes',icon:'note'},{id:'settings',text:'Settings',icon:'settings'}];
   function getList(id){return data.lists.find(l=>l.id===id)||data.lists.find(l=>l.id==='inbox')||defaultData().lists[0];}
   const activeTasks=() => data.tasks.filter(t=>!t.completed);
@@ -149,7 +149,7 @@
     if(t.dueDate)meta.push(`<span class="${overdue?'overdue':''}">${icon('calendar')} ${t.dueDate===todayKey()?'Today':dateLabel(t.dueDate)}</span>`);
     if(t.priority!=='none')meta.push(`<span class="priority-${t.priority}">${escapeHtml(t.priority)} priority</span>`);
     if(t.repeat!=='none')meta.push(`<span>↻ ${escapeHtml(t.repeat)}</span>`);
-    return `<div class="task-row ${t.completed?'completed':''}"><button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><div class="task-main"><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button>${webLinks([t.title,t.notes])}</div><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
+    return `<div class="task-row ${t.completed?'completed':''} ${isSelected('task',t.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='task'?`<span class="select-box ${isSelected('task',t.id)?'checked':''}">${isSelected('task',t.id)?'✓':''}</span>`: '' }<button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><div class="task-main"><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button>${webLinks([t.title,t.notes])}</div><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
   }
   function taskStack(tasks,title='Nothing here yet',message='Your tasks will show up here.',action='new-task'){
     return `<div class="task-stack">${tasks.length?sortTasks(tasks).map(taskRow).join(''):empty(title,message,action)}</div>`;
@@ -189,7 +189,7 @@
   }
   function eventRow(e){
     const repeat=e.repeat!=='none'?`<span>↻ Every ${escapeHtml(e.repeat==='daily'?'day':e.repeat==='weekly'?'week':e.repeat==='monthly'?'month':'year')}</span>`:'';
-    return `<div class="event-row"><button class="event-row-open" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>${webLinks([e.title,e.notes])}</div>`;
+    return `<div class="event-row ${isSelected('event',e.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='event'?`<span class="select-box ${isSelected('event',e.id)?'checked':''}">${isSelected('event',e.id)?'✓':''}</span>`: '' }<button class="event-row-open" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>${webLinks([e.title,e.notes])}</div>`;
   }
   function eventStack(events,emptyText='No events on this day.'){
     return `<div class="event-stack">${events.length?events.map(eventRow).join(''):`<div class="event-empty">${escapeHtml(emptyText)}</div>`}</div>`;
@@ -308,7 +308,7 @@
   function noteCard(n){
     const summary=n.body.trim().replace(/\s+/g,' ').slice(0,240);
     const folder=data.noteFolders.find(f=>f.id===n.folderId);
-    return `<article class="note-card" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top"><span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span></button>${webLinks([n.title,n.body])}</article>`;
+    return `<article class="note-card ${isSelected('note',n.id)?'is-selected':''}" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top">${ui.selection&&ui.selection.kind==='note'?`<span class="select-box ${isSelected('note',n.id)?'checked':''}">${isSelected('note',n.id)?'✓':''}</span>`: '' }<span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span></button>${webLinks([n.title,n.body])}</article>`;
   }
   function noteFolderControls(){
     const count=id=>data.notes.filter(n=>id==='all'||(id==='unfiled'?!n.folderId:n.folderId===id)).length;
@@ -382,11 +382,28 @@
     `<div class="settings-grid"><div class="setting-panel"><h2>Appearance</h2><p>Set the mood for your workspace.</p><label>Color theme</label>${settingsTheme()}<label>Accent color</label><div class="color-palette">${PALETTE.map(c=>`<button class="swatch ${data.settings.accent===c?'selected':''}" style="background:${c}" data-action="setting" data-setting="accent" data-value="${c}" aria-label="Use accent ${c}" aria-pressed="${data.settings.accent===c}"></button>`).join('')}</div><label for="weekStart">Week starts on</label><select id="weekStart"><option value="0" ${data.settings.weekStart===0?'selected':''}>Sunday</option><option value="1" ${data.settings.weekStart===1?'selected':''}>Monday</option></select><div class="setting-row"><div><span>Compact task rows</span><small>Fit more on the screen</small></div><input type="checkbox" id="settingCompact" ${data.settings.compact?'checked':''}></div><div class="setting-row"><div><span>Show completed on calendar</span><small>See past wins on their dates</small></div><input type="checkbox" id="settingCompleted" ${data.settings.showCompleted?'checked':''}></div></div>
     <div class="setting-panel"><h2>Your data, your rules.</h2><p>Dayloom saves only in this browser. Export a JSON backup regularly—especially before clearing browser data or switching phones.</p><div class="setting-action"><button class="btn btn-primary" data-action="export">${icon('download')} Download backup</button><button class="btn" data-action="import">${icon('upload')} Import backup</button></div><div class="setting-row"><div><span>Saved locally</span><small>No account or automatic device sync.</small></div><span class="status-dot"></span></div><div class="setting-row"><div><span>Tasks</span><small>Total stored here</small></div><strong>${data.tasks.length}</strong></div><div class="setting-row"><div><span>Events</span><small>Calendar entries stored here</small></div><strong>${data.events.length}</strong></div><div class="setting-row"><div><span>Notes</span><small>Notebook entries stored here</small></div><strong>${data.notes.length}</strong></div><div class="setting-row"><div><span>Note folders</span><small>Notebook folders stored here</small></div><strong>${data.noteFolders.length}</strong></div><div class="setting-row"><div><span>Lists</span><small>Custom categories</small></div><strong>${data.lists.length}</strong></div><div style="border-top:1px solid var(--line);margin-top:12px;padding-top:19px"><h2>Start over</h2><p>Erase all tasks, events, notes, folders and customizations from this browser. Export a backup first—this cannot be undone.</p><button class="btn btn-danger-soft" data-action="clear-all">${icon('trash')} Erase local data</button></div></div></div>`;
   }
+  // Multi-select: long-press a task, event or note to select it, tap more to add them, then move or delete the batch.
+  const selectableFromNode=node=>{
+    const row=node.closest?.('.task-row,.event-row,.note-card');
+    if(!row)return null;
+    const id=row.querySelector('[data-id]')?.dataset.id;
+    if(!id)return null;
+    const kind=row.classList.contains('task-row')?'task':row.classList.contains('event-row')?'event':'note';
+    return {kind,id};
+  };
+  const selectionCount=()=>ui.selection?ui.selection.ids.length:0;
+  const isSelected=(kind,id)=>!!ui.selection&&ui.selection.kind===kind&&ui.selection.ids.includes(id);
+  const paintSelectionBar=()=>{const bar=el('selectionBar');if(!bar)return;if(!ui.selection){bar.hidden=true;bar.innerHTML='';return;}const n=selectionCount(),kind=ui.selection.kind;const label=kind==='task'?'task':kind==='event'?'event':'note';const moveControl=kind==='task'?`<select id="selectionMoveTarget" aria-label="Move to list">${data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:kind==='note'?`<select id="selectionMoveTarget" aria-label="Move to folder"><option value="">Unfiled</option>${data.noteFolders.map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:'';bar.innerHTML=`<strong>${n} selected</strong>${moveControl}<button class="btn btn-danger-soft" data-action="selection-delete">Delete</button><button class="btn" data-action="selection-cancel">Cancel</button>`;bar.hidden=false;};
+  const startSelection=(kind,id)=>{ui.selection={kind,ids:[id]};render();};
+  const toggleSelection=(kind,id)=>{if(!ui.selection||ui.selection.kind!==kind){startSelection(kind,id);return;}const at=ui.selection.ids.indexOf(id);if(at>=0)ui.selection.ids.splice(at,1);else ui.selection.ids.push(id);if(!ui.selection.ids.length)ui.selection=null;render();};
+  function bulkDelete(){if(!ui.selection)return;const n=selectionCount(),kind=ui.selection.kind,ids=new Set(ui.selection.ids);const label=kind==='task'?'task':kind==='event'?'event':'note';if(!confirm(`Delete ${n} ${label}${n===1?'':'s'}? This cannot be undone.`))return;if(kind==='task')data.tasks=data.tasks.filter(t=>!ids.has(t.id));else if(kind==='event')data.events=data.events.filter(ev=>!ids.has(ev.id));else data.notes=data.notes.filter(no=>!ids.has(no.id));ui.selection=null;persist();render();notify(`Deleted ${n} ${label}${n===1?'':'s'}.`);}
+  function bulkMove(){if(!ui.selection)return;const destEl=el('selectionMoveTarget');if(!destEl)return;const dest=destEl.value,n=selectionCount(),ids=new Set(ui.selection.ids);if(ui.selection.kind==='task'){data.tasks.forEach(t=>{if(ids.has(t.id))t.listId=dest;});const name=(data.lists.find(l=>l.id===dest)||{}).name||'that list';ui.selection=null;persist();render();notify(`Moved ${n} task${n===1?'':'s'} to ${name}.`);}else if(ui.selection.kind==='note'){data.notes.forEach(no=>{if(ids.has(no.id))no.folderId=dest;});const name=dest?noteFolderName(dest):'Unfiled';ui.selection=null;persist();render();notify(`Moved ${n} note${n===1?'':'s'} to ${name}.`);}}
   function render(){applySettings();renderNav();const m=el('mainContent');
     m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='tasks'?renderTasks():ui.view==='lists'?renderLists():ui.view==='notes'?renderNotes():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
     if(ui.view==='notes')updateNoteResults();
     if(ui.view==='calendar')updateEventSearchResults();
     if(ui.view==='tasks'){el('statusFilter').value=ui.taskStatus;el('listFilter').value=ui.taskList;el('priorityFilter').value=ui.taskPriority;updateTaskResults();}
+    paintSelectionBar();
   }
   function openDialog(id){const d=el(id);if(typeof d.showModal==='function')d.showModal();else d.setAttribute('open','');}
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
@@ -596,9 +613,29 @@
     else if(a==='import')el('importFile').click();
     else if(a==='ics-export')exportICS();
     else if(a==='ics-import')el('icsFile').click();
+    else if(a==='selection-cancel'){ui.selection=null;render();}
+    else if(a==='selection-delete'){bulkDelete();}
+    else if(a==='selection-move'){bulkMove();}
     else if(a==='clear-all'){if(confirm('Erase all Dayloom data on this device? This cannot be undone.')&&prompt('Type ERASE to confirm:')==='ERASE'){data=defaultData();ui.selectedDate=todayKey();persist();navigate('today');notify('Your local data has been erased.');}}
   }
-  document.addEventListener('click',e=>{const close=e.target.closest('[data-close]');if(close){closeDialog(close.dataset.close);return;}const action=e.target.closest('[data-action]');if(action)handleAction(action);});
+  document.addEventListener('click',e=>{const close=e.target.closest('[data-close]');if(close){closeDialog(close.dataset.close);return;}if(ui.selection){if(e.target.closest&&e.target.closest('#selectionBar')){const barAction=e.target.closest('[data-action]');if(barAction)handleAction(barAction);return;}const found=selectableFromNode(e.target);if(found){toggleSelection(found.kind,found.id);return;}ui.selection=null;render();}const action=e.target.closest('[data-action]');if(action)handleAction(action);});
+  let pressTimer=null,pressTarget=null,pressX=0,pressY=0,pressFiredAt=0,suppressClick=false;
+  const clearPress=()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null;}pressTarget=null;};
+  document.addEventListener('pointerdown',e=>{
+    suppressClick=false;
+    if(e.button!==undefined&&e.button>0)return;
+    const target=e.target;
+    if(!target.closest||target.closest('a,.task-check'))return;
+    const found=selectableFromNode(target);
+    if(!found)return;
+    pressTarget=found;pressX=e.clientX;pressY=e.clientY;
+    pressTimer=setTimeout(()=>{pressTimer=null;pressFiredAt=Date.now();suppressClick=true;setTimeout(()=>{suppressClick=false;},1000);if(pressTarget&&!isSelected(pressTarget.kind,pressTarget.id))toggleSelection(pressTarget.kind,pressTarget.id);},450);
+  });
+  document.addEventListener('pointermove',e=>{if(!pressTimer)return;if(Math.abs(e.clientX-pressX)>12||Math.abs(e.clientY-pressY)>12)clearPress();});
+  document.addEventListener('pointerup',clearPress);
+  document.addEventListener('pointercancel',clearPress);
+  document.addEventListener('contextmenu',e=>{if(!pressTimer&&Date.now()-pressFiredAt>600)return;const target=e.target;if(target.closest&&target.closest('.task-row,.event-row,.note-card')&&!target.closest('a'))e.preventDefault();});
+  document.addEventListener('click',e=>{if(!suppressClick)return;suppressClick=false;e.stopPropagation();e.preventDefault();},true);
   document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}});
@@ -625,7 +662,7 @@
   el('mobileAdd').addEventListener('click',()=>ui.view==='calendar'?openEvent('',ui.selectedDate):ui.view==='notes'?openNote():openTask());
   el('searchFocusBtn').addEventListener('click',()=>{navigate('tasks');el('taskSearch')?.focus();});
   el('brandLink').addEventListener('click',e=>{e.preventDefault();navigate('today');});
-  window.addEventListener('hashchange',()=>{const next=decodeURIComponent(location.hash.slice(1))||'today';if(next!==ui.view){ui.view=next;render();}});
+  window.addEventListener('hashchange',()=>{const next=decodeURIComponent(location.hash.slice(1))||'today';if(next!==ui.view){ui.view=next;ui.selection=null;render();}});
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(data.settings.theme==='system')applySettings();});
   const initial=decodeURIComponent(location.hash.slice(1));if(views.some(v=>v.id===initial)||(initial.startsWith('list:')&&data.lists.some(l=>'list:'+l.id===initial)))ui.view=initial;
   render();if(storageIssue)notify('Saved data could not be loaded. Export backups regularly.',true);
