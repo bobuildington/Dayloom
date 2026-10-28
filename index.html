@@ -81,7 +81,7 @@
           <div><label class="field-label" for="taskPriority">Priority</label><select id="taskPriority" class="field"><option value="none">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
           <div><label class="field-label" for="taskRepeat">Repeat</label><select id="taskRepeat" class="field"><option value="none">Never</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
         </div>
-        <label class="field-label" for="taskNotes">Notes</label><textarea id="taskNotes" class="field notes" maxlength="4000" rows="4" placeholder="Add details, ideas, or a quick reminder..."></textarea>
+        <label class="field-label" for="taskNotes">Notes</label><textarea id="taskNotes" class="field notes" maxlength="4000" rows="4" placeholder="Add details, ideas, or a quick reminder..."></textarea><div class="editor-link-preview" id="taskLinkPreview" aria-label="Clickable task links" hidden></div>
         <p class="form-tip">Repeating tasks create their next occurrence when you complete them.</p>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="taskDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="taskDialog">Cancel</button><button class="btn btn-primary" id="taskSave" type="submit">Save task</button></div></div>
@@ -108,7 +108,7 @@
         <select id="eventRepeat" class="field"><option value="none">Never</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
         <p class="form-tip">Repeating events must start and end on the same date. Editing one edits the entire series.</p>
         <label class="field-label">Event color</label><div class="color-palette" id="eventColorPalette"></div>
-        <label class="field-label" for="eventNotes">Notes</label><textarea id="eventNotes" class="field notes" maxlength="4000" rows="3" placeholder="Location, details, reminders..."></textarea>
+        <label class="field-label" for="eventNotes">Notes</label><textarea id="eventNotes" class="field notes" maxlength="4000" rows="3" placeholder="Location, details, reminders..."></textarea><div class="editor-link-preview" id="eventLinkPreview" aria-label="Clickable event links" hidden></div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="eventDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="eventDialog">Cancel</button><button class="btn btn-primary" type="submit">Save event</button></div></div>
     </form>
@@ -124,7 +124,7 @@
         <label class="field-label" for="noteFolder">Folder</label>
         <select id="noteFolder" class="field"><option value="">Unfiled</option></select>
         <label class="field-label" for="noteBody">Your note</label>
-        <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea>
+        <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea><div class="editor-link-preview" id="noteLinkPreview" aria-label="Clickable note links" hidden></div>
         <label class="event-check"><input id="notePinned" type="checkbox"><span>Pin to the top</span></label>
         <label class="field-label">Note color</label><div id="noteColorPalette" class="color-palette"></div>
       </div>
