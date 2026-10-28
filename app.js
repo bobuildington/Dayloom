@@ -66,6 +66,10 @@
         id:item.id,title:safeString(item.title,160),notes:safeString(item.notes,4000),dueDate,
         listId:listMap.has(item.listId)?item.listId:'inbox',priority:PRIORITIES.includes(item.priority)?item.priority:'none',
         repeat:REPEATS.includes(item.repeat)?item.repeat:'none',completed:item.completed===true,
+        checklist:Array.isArray(item.checklist)?item.checklist.filter(s=>s&&typeof s.text==='string'&&s.text.trim()).slice(0,50).map(s=>({id:validId(s.id)?s.id:uuid(),text:s.text.slice(0,120),done:s.done===true})):[],
+        reminder:validTime(item.reminder)?item.reminder:'',
+        reminderNotified:validIsoDate(item.reminderNotified)?item.reminderNotified:'',
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type})).slice(0,20):[],
         createdAt:typeof item.createdAt==='string'?item.createdAt:new Date().toISOString(),
         updatedAt:typeof item.updatedAt==='string'?item.updatedAt:new Date().toISOString(),
         completedAt:typeof item.completedAt==='string'?item.completedAt:''
@@ -84,6 +88,7 @@
       eventMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),notes:safeString(item.notes,4000),
         startDate,endDate,startTime,endTime,allDay,repeat,color:validColor(item.color),
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type})).slice(0,20):[],
         createdAt:typeof item.createdAt==='string'?item.createdAt:new Date().toISOString(),
         updatedAt:typeof item.updatedAt==='string'?item.updatedAt:new Date().toISOString()
       });
@@ -99,6 +104,7 @@
       noteMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),body:safeString(item.body,20000),
         pinned:item.pinned===true,color:validColor(item.color),folderId:folderMap.has(item.folderId)?item.folderId:'',
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type})).slice(0,20):[],
         createdAt:typeof item.createdAt==='string'?item.createdAt:new Date().toISOString(),
         updatedAt:typeof item.updatedAt==='string'?item.updatedAt:new Date().toISOString()
       });
@@ -114,9 +120,9 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null};
   let toastTimer;
-  function notify(message,error=false){const node=el('toast'); node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
+  function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
   function applySettings(){
     const s=data.settings;const dark=s.theme==='dark'||(s.theme==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
@@ -149,12 +155,30 @@
     if(t.dueDate)meta.push(`<span class="${overdue?'overdue':''}">${icon('calendar')} ${t.dueDate===todayKey()?'Today':dateLabel(t.dueDate)}</span>`);
     if(t.priority!=='none')meta.push(`<span class="priority-${t.priority}">${escapeHtml(t.priority)} priority</span>`);
     if(t.repeat!=='none')meta.push(`<span>↻ ${escapeHtml(t.repeat)}</span>`);
-    return `<div class="task-row ${t.completed?'completed':''} ${isSelected('task',t.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='task'?`<span class="select-box ${isSelected('task',t.id)?'checked':''}">${isSelected('task',t.id)?'✓':''}</span>`: '' }<button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><div class="task-main"><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button>${webLinks([t.title,t.notes])}</div><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
+    if(t.checklist&&t.checklist.length)meta.push(`<span>✓ ${t.checklist.filter(s=>s.done).length}/${t.checklist.length} steps</span>`);
+    if(t.reminder)meta.push(`<span>${icon('clock')} ${t.reminder}</span>`);
+    const mediaMeta=mediaCounts(t.attachments);if(mediaMeta)meta.push(`<span>${mediaMeta}</span>`);
+    return `<div class="task-row ${t.completed?'completed':''} ${isSelected('task',t.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='task'?`<span class="select-box ${isSelected('task',t.id)?'checked':''}">${isSelected('task',t.id)?'✓':''}</span>`: '' }<button class="task-check ${t.completed?'checked':''}" data-action="toggle-task" data-id="${escapeHtml(t.id)}" aria-label="${t.completed?'Mark incomplete':'Complete'}: ${escapeHtml(t.title)}" aria-pressed="${t.completed}">${icon('check')}</button><div class="task-main"><button class="task-open" data-action="edit-task" data-id="${escapeHtml(t.id)}"><span class="task-name">${escapeHtml(t.title)}</span><span class="task-sub">${meta.join('')}</span></button>${webLinks([t.title,t.notes])}${subtaskBlock(t)}</div><button class="task-arrow" data-action="edit-task" data-id="${escapeHtml(t.id)}" aria-label="Edit ${escapeHtml(t.title)}">${icon('chevron-right')}</button></div>`;
   }
   function taskStack(tasks,title='Nothing here yet',message='Your tasks will show up here.',action='new-task'){
     return `<div class="task-stack">${tasks.length?sortTasks(tasks).map(taskRow).join(''):empty(title,message,action)}</div>`;
   }
   function section(title,items,emptyTitle,emptyDesc){return `<div class="section-title"><h2>${title}</h2><span>${items.length} ${items.length===1?'task':'tasks'}</span></div>${taskStack(items,emptyTitle,emptyDesc)}`;}
+  const mediaCounts=atts=>{if(!atts||!atts.length)return '';const p=atts.filter(a=>a.type==='image').length,v=atts.length-p;return (p?`📷 ${p}`:'')+(p&&v?' · ':'')+(v?`🎬 ${v}`:'');};
+  const subtaskBlock=t=>{if(!t.checklist||!t.checklist.length)return '';return `<div class="subtask-list">${t.checklist.map(s=>`<button type="button" class="subtask ${s.done?'done':''}" data-action="toggle-subtask" data-id="${escapeHtml(t.id)}" data-sub="${escapeHtml(s.id)}"><span class="subtask-box">${s.done?'✓':''}</span><span class="subtask-text">${escapeHtml(s.text)}</span></button>`).join('')}</div>`;};
+  function mediaDB(){return new Promise((resolve,reject)=>{if(typeof indexedDB==='undefined'){reject(new Error('no indexedDB'));return;}const req=indexedDB.open('dayloom-media',1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('attachments'))req.result.createObjectStore('attachments',{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+  function mediaPut(att){return mediaDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('attachments','readwrite');tx.objectStore('attachments').put(att);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);}));}
+  function mediaGet(id){return mediaDB().then(db=>new Promise((res,rej)=>{const req=db.transaction('attachments').objectStore('attachments').get(id);req.onsuccess=()=>res(req.result||null);req.onerror=()=>rej(req.error);}));}
+  function mediaDelete(id){return mediaDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('attachments','readwrite');tx.objectStore('attachments').delete(id);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);})).catch(()=>{});}
+  function mediaClear(){return mediaDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('attachments','readwrite');tx.objectStore('attachments').clear();tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);})).catch(()=>{});}
+  function deleteMediaFor(item){if(item&&item.attachments)item.attachments.forEach(a=>mediaDelete(a.id));}
+  async function paintEditorMedia(){const kind=ui.editMedia?.kind;if(!kind)return;const box=el(kind+'Media');if(!box)return;(ui.mediaURLs||[]).forEach(u=>URL.revokeObjectURL(u));ui.mediaURLs=[];const items=ui.editMedia.items||[];if(!items.length){box.innerHTML='<p class="form-tip">No photos or videos yet.</p>';return;}const parts=[];const missing=[];for(const ref of items){try{const att=await mediaGet(ref.id);if(!att||!att.blob){missing.push(ref.id);continue;}const url=URL.createObjectURL(att.blob);ui.mediaURLs.push(url);parts.push(att.type==='video'?`<div class="media-item"><video src="${url}" controls preload="metadata"></video><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`:`<div class="media-item"><img src="${url}" alt="${escapeHtml(att.name||'photo')}"><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`);}catch(e){missing.push(ref.id);}}if(missing.length)ui.editMedia.items=ui.editMedia.items.filter(i=>!missing.includes(i.id));box.innerHTML=parts.join('')||'<p class="form-tip">No photos or videos yet.</p>';}
+  function addMedia(kind,input){const files=[...input.files];input.value='';if(!ui.editMedia||ui.editMedia.kind!==kind)return;files.forEach(file=>{if(file.size>200*1024*1024){notify(`"${file.name}" is too large to store on this device.`,true);return;}const type=file.type.startsWith('video/')?'video':'image';const id=uuid();mediaPut({id,ownerKind:kind,ownerId:ui.editMedia.ownerId,type,name:file.name.slice(0,120),blob:file,createdAt:new Date().toISOString()}).then(()=>{ui.editMedia.items.push({id,type});paintEditorMedia();}).catch(()=>notify('Could not save that file on this device.',true));});}
+  function recordDelete(kind,items){if(!items||!items.length)return;ui.undo={kind,items:JSON.parse(JSON.stringify(items))};showUndoToast(`Deleted ${items.length} ${kind}${items.length===1?'':'s'}.`);}
+  function showUndoToast(message){const node=el('toast');if(!node)return;node.innerHTML=`<span>${escapeHtml(message)}</span> <button class="btn btn-primary" data-action="undo-delete">Undo</button>`;node.classList.remove('error');node.classList.add('has-action');node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>{node.classList.remove('visible');node.classList.remove('has-action');ui.undo=null;},8000);}
+  function undoDelete(){if(!ui.undo)return;const {kind,items}=ui.undo;const arr=kind==='task'?data.tasks:kind==='event'?data.events:data.notes;items.forEach(it=>{if(!arr.some(x=>x.id===it.id))arr.push(it);});const n=items.length;ui.undo=null;persist();render();notify(`Restored ${n} ${kind}${n===1?'':'s'}.`);}
+  function computeStreak(){const doneDates=new Set(data.tasks.filter(t=>t.completed&&t.completedAt).map(t=>localDate(new Date(t.completedAt))));const today=parseLocalDate(todayKey());let cursor=new Date(today);if(!doneDates.has(localDate(cursor)))cursor.setDate(cursor.getDate()-1);let streak=0;while(doneDates.has(localDate(cursor))){streak++;cursor.setDate(cursor.getDate()-1);}const weekStart=new Date(today);weekStart.setDate(today.getDate()-((today.getDay()-data.settings.weekStart+7)%7));const weekEnd=new Date(weekStart);weekEnd.setDate(weekStart.getDate()+7);const weekCount=data.tasks.filter(t=>t.completed&&t.completedAt&&localDate(new Date(t.completedAt))>=localDate(weekStart)&&localDate(new Date(t.completedAt))<localDate(weekEnd)).length;return {streak,weekCount,totalDone:data.tasks.filter(t=>t.completed).length};}
+  function checkReminders(){if(typeof Notification==='undefined')return;const today=todayKey(),now=new Date(),hhmm=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;let changed=false;for(const t of data.tasks){if(t.completed||!t.reminder||t.dueDate!==today||t.reminderNotified===today||t.reminder>hhmm)continue;if(Notification.permission==='granted'){try{const n=new Notification('Dayloom reminder',{body:t.title});n.onclick=()=>window.focus();}catch(e){}}notify(`Reminder: ${t.title} is due now.`);t.reminderNotified=today;t.updatedAt=new Date().toISOString();changed=true;}if(changed)persist();}
   function renderToday(){
     const today=todayKey(),all=data.tasks,doneToday=all.filter(t=>t.completed&&t.completedAt&&localDate(new Date(t.completedAt))===today).length;
     const openToday=all.filter(t=>!t.completed&&t.dueDate===today),overdue=all.filter(t=>!t.completed&&t.dueDate&&t.dueDate<today);
@@ -162,11 +186,13 @@
     const events=eventsOnDate(today);
     const pct=(doneToday+openToday.length)?Math.round(doneToday/(doneToday+openToday.length)*100):0;
     const greeting=()=>{const hour=new Date().getHours();return hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';};
+    const stats=computeStreak();
+    const streakBanner=`<div class="streak-banner"><span class="streak-flame">🔥</span><div><strong>${stats.streak?stats.streak+'-day streak':'Start your streak'}</strong><small>${stats.streak?'Keep it going — complete a task every day.':'Complete a task to get the chain going.'} · ${stats.weekCount} done this week · ${stats.totalDone} total</small></div></div>`;
     return head('A fresh day, a fresh start.',new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric',year:'numeric'}))+
       `<div class="hero"><div><div class="eyebrow">HELLO THERE ✨</div><h2>${greeting()}.</h2><p>${openToday.length?'You have '+openToday.length+' task'+(openToday.length===1?'':'s')+' planned for today.':'A clear day is a beautiful thing.'}<br>Make it count, at your own pace.</p></div><div class="progress-ring" style="--progress:${pct}%"><div class="progress-core"><strong>${pct}%</strong><span>TODAY</span></div></div></div>`+
-      `<div class="metric-grid"><div class="metric"><span class="metric-icon">${icon('checklist')}</span><small>To do today</small><strong>${openToday.length}</strong><span class="metric-caption">On your list</span></div><div class="metric"><span class="metric-icon">${icon('clock')}</span><small>Overdue</small><strong>${overdue.length}</strong><span class="metric-caption">Needs attention</span></div><div class="metric"><span class="metric-icon">${icon('check')}</span><small>Done today</small><strong>${doneToday}</strong><span class="metric-caption">Small wins</span></div></div>`+
+      `<div class="metric-grid"><div class="metric"><span class="metric-icon">${icon('checklist')}</span><small>To do today</small><strong>${openToday.length}</strong><span class="metric-caption">On your list</span></div><div class="metric"><span class="metric-icon">${icon('clock')}</span><small>Overdue</small><strong>${overdue.length}</strong><span class="metric-caption">Needs attention</span></div><div class="metric"><span class="metric-icon">${icon('check')}</span><small>Done today</small><strong>${doneToday}</strong><span class="metric-caption">Small wins</span></div></div>${streakBanner}`+
       `<div class="section-title"><h2>Today's events</h2><button class="btn" data-action="new-event" data-date="${today}">${icon('plus')} Add event</button></div>${eventStack(events,'No events today. Add one to your calendar.')}`+
-      section('What you missed',overdue,'You’re all caught up','Nothing missed yet.')+
+      (overdue.length?`<div class="section-title"><h2>What you missed</h2><span>${overdue.length} ${overdue.length===1?'task':'tasks'}</span><button class="btn" data-action="missed-to-today">Move all to today</button></div>${taskStack(overdue)}`:section('What you missed',overdue,'You’re all caught up','Nothing missed yet.'))+
       section('On your plate today',openToday,'Your day is wide open','Add a task to give your day some shape.')+
       section('Coming up next',upcoming,'Nothing on the horizon','Future tasks with due dates appear here.');
   }
@@ -189,7 +215,7 @@
   }
   function eventRow(e){
     const repeat=e.repeat!=='none'?`<span>↻ Every ${escapeHtml(e.repeat==='daily'?'day':e.repeat==='weekly'?'week':e.repeat==='monthly'?'month':'year')}</span>`:'';
-    return `<div class="event-row ${isSelected('event',e.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='event'?`<span class="select-box ${isSelected('event',e.id)?'checked':''}">${isSelected('event',e.id)?'✓':''}</span>`: '' }<button class="event-row-open" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>${webLinks([e.title,e.notes])}</div>`;
+    return `<div class="event-row ${isSelected('event',e.id)?'is-selected':''}">${ui.selection&&ui.selection.kind==='event'?`<span class="select-box ${isSelected('event',e.id)?'checked':''}">${isSelected('event',e.id)?'✓':''}</span>`: '' }<button class="event-row-open" data-action="edit-event" data-id="${escapeHtml(e.id)}"><span class="event-marker" style="background:${e.color}"></span><span class="event-copy"><strong>${escapeHtml(e.title)}</strong><span class="event-sub">${icon('clock')} ${escapeHtml(eventWhen(e))} ${repeat}${mediaCounts(e.attachments)?` · ${mediaCounts(e.attachments)}`:''}</span>${e.notes?`<small>${escapeHtml(e.notes)}</small>`:''}</span>${icon('chevron-right')}</button>${webLinks([e.title,e.notes])}</div>`;
   }
   function eventStack(events,emptyText='No events on this day.'){
     return `<div class="event-stack">${events.length?events.map(eventRow).join(''):`<div class="event-empty">${escapeHtml(emptyText)}</div>`}</div>`;
@@ -199,7 +225,8 @@
   function openEvent(id='',date=''){
     const e=data.events.find(x=>x.id===id);
     const selected=date||ui.selectedDate||todayKey();
-    el('eventDialogTitle').textContent=e?'Edit event':'New event';el('eventId').value=e?.id||'';
+    el('eventDialogTitle').textContent=e?'Edit event':'New event';el('eventId').value=e?.id||uuid();
+    ui.editMedia={kind:'event',ownerId:el('eventId').value,original:(e?.attachments||[]).map(a=>({...a})),items:(e?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('eventTitle').value=e?.title||'';el('eventStart').value=e?.startDate||selected;
     el('eventEnd').value=e?.endDate||selected;
     el('eventAllDay').checked=e?.allDay!==false;
@@ -217,7 +244,8 @@
     const allDay=el('eventAllDay').checked,startTime=el('eventStartTime').value,endTime=el('eventEndTime').value;
     if(!allDay&&(!validTime(startTime)||!validTime(endTime)||(startDate===endDate&&endTime<=startTime))){notify('Enter a valid time range; the end must follow the start.',true);return;}
     const old=data.events.find(e=>e.id===el('eventId').value),now=new Date().toISOString();
-    const entry={id:old?.id||uuid(),title:title.slice(0,160),notes:el('eventNotes').value.slice(0,4000),startDate,endDate,allDay,startTime:validTime(startTime)?startTime:'09:00',endTime:validTime(endTime)?endTime:'10:00',repeat,color:ui.selectedEventColor,createdAt:old?.createdAt||now,updatedAt:now};
+    const entry={id:el('eventId').value||old?.id||uuid(),title:title.slice(0,160),notes:el('eventNotes').value.slice(0,4000),startDate,endDate,allDay,startTime:validTime(startTime)?startTime:'09:00',endTime:validTime(endTime)?endTime:'10:00',repeat,color:ui.selectedEventColor,attachments:ui.editMedia&&ui.editMedia.ownerId===el('eventId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    if(ui.editMedia&&ui.editMedia.ownerId===el('eventId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old)data.events[data.events.indexOf(old)]=entry;else data.events.push(entry);
     const targetDate=old&&ui.view==='calendar'&&eventAtDate(entry,ui.selectedDate)?ui.selectedDate:startDate;
     ui.selectedDate=targetDate;const selected=parseLocalDate(targetDate);ui.month=selected.getMonth();ui.year=selected.getFullYear();
@@ -225,7 +253,8 @@
   }
   function deleteEvent(){const id=el('eventId').value;if(!id)return;
     if(!confirm('Delete this event? If it repeats, the entire series will be removed.'))return;
-    data.events=data.events.filter(e=>e.id!==id);persist();closeDialog('eventDialog');render();notify('Event deleted');
+    const item=data.events.find(e=>e.id===id);recordDelete('event',item?[item]:[]);deleteMediaFor(item);
+    data.events=data.events.filter(e=>e.id!==id);persist();closeDialog('eventDialog');render();
   }
   function calendarCells(){
     const first=new Date(ui.year,ui.month,1);const offset=(first.getDay()-data.settings.weekStart+7)%7;
@@ -308,7 +337,7 @@
   function noteCard(n){
     const summary=n.body.trim().replace(/\s+/g,' ').slice(0,240);
     const folder=data.noteFolders.find(f=>f.id===n.folderId);
-    return `<article class="note-card ${isSelected('note',n.id)?'is-selected':''}" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top">${ui.selection&&ui.selection.kind==='note'?`<span class="select-box ${isSelected('note',n.id)?'checked':''}">${isSelected('note',n.id)?'✓':''}</span>`: '' }<span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span></button>${webLinks([n.title,n.body])}</article>`;
+    return `<article class="note-card ${isSelected('note',n.id)?'is-selected':''}" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top">${ui.selection&&ui.selection.kind==='note'?`<span class="select-box ${isSelected('note',n.id)?'checked':''}">${isSelected('note',n.id)?'✓':''}</span>`: '' }<span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span>${mediaCounts(n.attachments)?`<span class="note-media">${mediaCounts(n.attachments)}</span>`:''}</button>${webLinks([n.title,n.body])}</article>`;
   }
   function noteFolderControls(){
     const count=id=>data.notes.filter(n=>id==='all'||(id==='unfiled'?!n.folderId:n.folderId===id)).length;
@@ -334,7 +363,8 @@
   function paintNoteColors(){el('noteColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedNoteColor===c?'selected':''}" type="button" style="background:${c}" data-action="note-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedNoteColor===c}"></button>`).join('');}
   function openNote(id=''){
     const note=data.notes.find(n=>n.id===id);
-    el('noteDialogTitle').textContent=note?'Edit note':'New note';el('noteId').value=note?.id||'';
+    el('noteDialogTitle').textContent=note?'Edit note':'New note';el('noteId').value=note?.id||uuid();
+    ui.editMedia={kind:'note',ownerId:el('noteId').value,original:(note?.attachments||[]).map(a=>({...a})),items:(note?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('noteTitle').value=note?.title||'';el('noteBody').value=note?.body||'';el('notePinned').checked=note?.pinned||false;
     el('noteFolder').innerHTML='<option value="">Unfiled</option>'+data.noteFolders.map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
@@ -344,13 +374,15 @@
   function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
     const old=data.notes.find(n=>n.id===el('noteId').value),now=new Date().toISOString();
-    const note={id:old?.id||uuid(),title:title.slice(0,160),body:el('noteBody').value.slice(0,20000),pinned:el('notePinned').checked,color:ui.selectedNoteColor,folderId:data.noteFolders.some(f=>f.id===el('noteFolder').value)?el('noteFolder').value:'',createdAt:old?.createdAt||now,updatedAt:now};
+    const note={id:el('noteId').value||old?.id||uuid(),title:title.slice(0,160),body:el('noteBody').value.slice(0,20000),pinned:el('notePinned').checked,color:ui.selectedNoteColor,folderId:data.noteFolders.some(f=>f.id===el('noteFolder').value)?el('noteFolder').value:'',attachments:ui.editMedia&&ui.editMedia.ownerId===el('noteId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    if(ui.editMedia&&ui.editMedia.ownerId===el('noteId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old)data.notes[data.notes.indexOf(old)]=note;else data.notes.push(note);
     if(!persist())return;
     closeDialog('noteDialog');render();notify(old?'Note saved':'Note created');
   }
   function deleteNote(){const id=el('noteId').value;if(!id||!confirm('Delete this note? This cannot be undone.'))return;
-    data.notes=data.notes.filter(n=>n.id!==id);persist();closeDialog('noteDialog');render();notify('Note deleted');
+    const item=data.notes.find(n=>n.id===id);recordDelete('note',item?[item]:[]);deleteMediaFor(item);
+    data.notes=data.notes.filter(n=>n.id!==id);persist();closeDialog('noteDialog');render();
   }
   function paintFolderColors(){el('folderColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedFolderColor===c?'selected':''}" type="button" style="background:${c}" data-action="folder-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedFolderColor===c}"></button>`).join('');}
   function openFolder(id=''){
@@ -378,9 +410,10 @@
     if(!persist())return;closeDialog('folderDialog');render();notify('Folder deleted. Notes kept in Unfiled.');
   }
   function settingsTheme(){return `<div class="theme-choices">${['system','light','dark'].map(x=>`<button class="option-pill ${data.settings.theme===x?'active':''}" data-action="setting" data-setting="theme" data-value="${x}">${x[0].toUpperCase()+x.slice(1)}</button>`).join('')}</div>`;}
-  function renderSettings(){return head('Make it feel like yours.','Customize your space and keep your data safe.')+
+  function renderSettings(){const notifSupported=typeof Notification!=='undefined';const notifState=notifSupported?Notification.permission:'unsupported';const reminderRow=notifState==='granted'?`<div class="setting-row"><div><span>Reminders</span><small>Notifications are on for this browser.</small></div><strong>On</strong></div>`:notifState==='denied'?`<div class="setting-row"><div><span>Reminders</span><small>Blocked — allow notifications in your browser settings to turn them on.</small></div></div>`:notifState==='unsupported'?`<div class="setting-row"><div><span>Reminders</span><small>Notifications are not supported in this browser.</small></div></div>`:`<div class="setting-row"><div><span>Reminders</span><small>Get a ping when a task's reminder time arrives (while Dayloom is open).</small></div><button class="btn" data-action="enable-reminders">Enable notifications</button></div>`;
+    return head('Make it feel like yours.','Customize your space and keep your data safe.')+
     `<div class="settings-grid"><div class="setting-panel"><h2>Appearance</h2><p>Set the mood for your workspace.</p><label>Color theme</label>${settingsTheme()}<label>Accent color</label><div class="color-palette">${PALETTE.map(c=>`<button class="swatch ${data.settings.accent===c?'selected':''}" style="background:${c}" data-action="setting" data-setting="accent" data-value="${c}" aria-label="Use accent ${c}" aria-pressed="${data.settings.accent===c}"></button>`).join('')}</div><label for="weekStart">Week starts on</label><select id="weekStart"><option value="0" ${data.settings.weekStart===0?'selected':''}>Sunday</option><option value="1" ${data.settings.weekStart===1?'selected':''}>Monday</option></select><div class="setting-row"><div><span>Compact task rows</span><small>Fit more on the screen</small></div><input type="checkbox" id="settingCompact" ${data.settings.compact?'checked':''}></div><div class="setting-row"><div><span>Show completed on calendar</span><small>See past wins on their dates</small></div><input type="checkbox" id="settingCompleted" ${data.settings.showCompleted?'checked':''}></div></div>
-    <div class="setting-panel"><h2>Your data, your rules.</h2><p>Dayloom saves only in this browser. Export a JSON backup regularly—especially before clearing browser data or switching phones.</p><div class="setting-action"><button class="btn btn-primary" data-action="export">${icon('download')} Download backup</button><button class="btn" data-action="import">${icon('upload')} Import backup</button></div><div class="setting-row"><div><span>Saved locally</span><small>No account or automatic device sync.</small></div><span class="status-dot"></span></div><div class="setting-row"><div><span>Tasks</span><small>Total stored here</small></div><strong>${data.tasks.length}</strong></div><div class="setting-row"><div><span>Events</span><small>Calendar entries stored here</small></div><strong>${data.events.length}</strong></div><div class="setting-row"><div><span>Notes</span><small>Notebook entries stored here</small></div><strong>${data.notes.length}</strong></div><div class="setting-row"><div><span>Note folders</span><small>Notebook folders stored here</small></div><strong>${data.noteFolders.length}</strong></div><div class="setting-row"><div><span>Lists</span><small>Custom categories</small></div><strong>${data.lists.length}</strong></div><div style="border-top:1px solid var(--line);margin-top:12px;padding-top:19px"><h2>Start over</h2><p>Erase all tasks, events, notes, folders and customizations from this browser. Export a backup first—this cannot be undone.</p><button class="btn btn-danger-soft" data-action="clear-all">${icon('trash')} Erase local data</button></div></div></div>`;
+    <div class="setting-panel"><h2>Your data, your rules.</h2><p>Dayloom saves only in this browser. Export a JSON backup regularly—especially before clearing browser data or switching phones. Photos and videos stay on this device and aren't included in JSON backups.</p><div class="setting-action"><button class="btn btn-primary" data-action="export">${icon('download')} Download backup</button><button class="btn" data-action="import">${icon('upload')} Import backup</button></div><div class="setting-row"><div><span>Saved locally</span><small>No account or automatic device sync.</small></div><span class="status-dot"></span></div>${reminderRow}<div class="setting-row"><div><span>Tasks</span><small>Total stored here</small></div><strong>${data.tasks.length}</strong></div><div class="setting-row"><div><span>Events</span><small>Calendar entries stored here</small></div><strong>${data.events.length}</strong></div><div class="setting-row"><div><span>Notes</span><small>Notebook entries stored here</small></div><strong>${data.notes.length}</strong></div><div class="setting-row"><div><span>Note folders</span><small>Notebook folders stored here</small></div><strong>${data.noteFolders.length}</strong></div><div class="setting-row"><div><span>Lists</span><small>Custom categories</small></div><strong>${data.lists.length}</strong></div><div style="border-top:1px solid var(--line);margin-top:12px;padding-top:19px"><h2>Start over</h2><p>Erase all tasks, events, notes, folders and customizations from this browser. Export a backup first—this cannot be undone.</p><button class="btn btn-danger-soft" data-action="clear-all">${icon('trash')} Erase local data</button></div></div></div>`;
   }
   // Multi-select: long-press a task, event or note to select it, tap more to add them, then move or delete the batch.
   const selectableFromNode=node=>{
@@ -396,7 +429,7 @@
   const paintSelectionBar=()=>{const bar=el('selectionBar');if(!bar)return;if(!ui.selection){bar.hidden=true;bar.innerHTML='';return;}const n=selectionCount(),kind=ui.selection.kind;const label=kind==='task'?'task':kind==='event'?'event':'note';const moveControl=kind==='task'?`<select id="selectionMoveTarget" aria-label="Move to list">${data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:kind==='note'?`<select id="selectionMoveTarget" aria-label="Move to folder"><option value="">Unfiled</option>${data.noteFolders.map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:'';bar.innerHTML=`<strong>${n} selected</strong>${moveControl}<button class="btn btn-danger-soft" data-action="selection-delete">Delete</button><button class="btn" data-action="selection-cancel">Cancel</button>`;bar.hidden=false;};
   const startSelection=(kind,id)=>{ui.selection={kind,ids:[id]};render();};
   const toggleSelection=(kind,id)=>{if(!ui.selection||ui.selection.kind!==kind){startSelection(kind,id);return;}const at=ui.selection.ids.indexOf(id);if(at>=0)ui.selection.ids.splice(at,1);else ui.selection.ids.push(id);if(!ui.selection.ids.length)ui.selection=null;render();};
-  function bulkDelete(){if(!ui.selection)return;const n=selectionCount(),kind=ui.selection.kind,ids=new Set(ui.selection.ids);const label=kind==='task'?'task':kind==='event'?'event':'note';if(!confirm(`Delete ${n} ${label}${n===1?'':'s'}? This cannot be undone.`))return;if(kind==='task')data.tasks=data.tasks.filter(t=>!ids.has(t.id));else if(kind==='event')data.events=data.events.filter(ev=>!ids.has(ev.id));else data.notes=data.notes.filter(no=>!ids.has(no.id));ui.selection=null;persist();render();notify(`Deleted ${n} ${label}${n===1?'':'s'}.`);}
+  function bulkDelete(){if(!ui.selection)return;const n=selectionCount(),kind=ui.selection.kind,ids=new Set(ui.selection.ids);const label=kind==='task'?'task':kind==='event'?'event':'note';const srcArr=kind==='task'?data.tasks:kind==='event'?data.events:data.notes;const items=srcArr.filter(x=>ids.has(x.id));if(!confirm(`Delete ${n} ${label}${n===1?'':'s'}? This cannot be undone.`))return;recordDelete(kind,items);items.forEach(deleteMediaFor);if(kind==='task')data.tasks=data.tasks.filter(t=>!ids.has(t.id));else if(kind==='event')data.events=data.events.filter(ev=>!ids.has(ev.id));else data.notes=data.notes.filter(no=>!ids.has(no.id));ui.selection=null;persist();render();}
   function bulkMove(){if(!ui.selection)return;const destEl=el('selectionMoveTarget');if(!destEl)return;const dest=destEl.value,n=selectionCount(),ids=new Set(ui.selection.ids);if(ui.selection.kind==='task'){data.tasks.forEach(t=>{if(ids.has(t.id))t.listId=dest;});const name=(data.lists.find(l=>l.id===dest)||{}).name||'that list';ui.selection=null;persist();render();notify(`Moved ${n} task${n===1?'':'s'} to ${name}.`);}else if(ui.selection.kind==='note'){data.notes.forEach(no=>{if(ids.has(no.id))no.folderId=dest;});const name=dest?noteFolderName(dest):'Unfiled';ui.selection=null;persist();render();notify(`Moved ${n} note${n===1?'':'s'} to ${name}.`);}}
   function render(){applySettings();renderNav();const m=el('mainContent');
     m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='tasks'?renderTasks():ui.view==='lists'?renderLists():ui.view==='notes'?renderNotes():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
@@ -407,20 +440,25 @@
   }
   function openDialog(id){const d=el(id);if(typeof d.showModal==='function')d.showModal();else d.setAttribute('open','');}
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
+  const paintTaskChecklist=()=>{const box=el('taskChecklist');if(!box)return;box.innerHTML=(ui.editChecklist||[]).map(s=>`<div class="checklist-edit-row" data-sub="${escapeHtml(s.id)}"><input class="field" maxlength="120" value="${escapeHtml(s.text)}" aria-label="Checklist step"><button type="button" class="btn btn-subtle" data-action="checklist-remove" data-sub="${escapeHtml(s.id)}">Remove</button></div>`).join('')||'<p class="form-tip">No steps yet — add one below.</p>';};
+  const readEditorChecklist=()=>{const rows=[...document.querySelectorAll('#taskChecklist .checklist-edit-row')];return rows.map(row=>{const input=row.querySelector('input');const text=input?input.value.trim():'';const orig=(ui.editChecklist||[]).find(s=>s.id===row.dataset.sub);return {id:row.dataset.sub,text:text.slice(0,120),done:orig?orig.done:false};}).filter(s=>s.text);};
   function openTask(id='',selectedDate='',listId=''){
     const task=data.tasks.find(t=>t.id===id);
-    el('taskDialogTitle').textContent=task?'Edit task':'New task';el('taskId').value=task?.id||'';
+    el('taskDialogTitle').textContent=task?'Edit task':'New task';el('taskId').value=task?.id||uuid();
     el('taskTitle').value=task?.title||'';el('taskDue').value=task?.dueDate||selectedDate||'';
     el('taskList').innerHTML=data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('');
     el('taskList').value=task?.listId||listId||(ui.view.startsWith('list:')?ui.view.slice(5):'inbox');
     if(!el('taskList').value)el('taskList').value='inbox';
-    el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';
+    el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';el('taskReminder').value=task?.reminder||'';
+    ui.editChecklist=(task?.checklist||[]).map(s=>({...s}));paintTaskChecklist();
+    ui.editMedia={kind:'task',ownerId:el('taskId').value,original:(task?.attachments||[]).map(a=>({...a})),items:(task?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
   }
   function saveTask(event){event.preventDefault();
     const title=el('taskTitle').value.trim();if(!title){el('taskTitle').reportValidity();el('taskTitle').focus();return;}
     const old=data.tasks.find(t=>t.id===el('taskId').value),now=new Date().toISOString();
-    const task={id:old?.id||uuid(),title:title.slice(0,160),notes:el('taskNotes').value.slice(0,4000),dueDate:validIsoDate(el('taskDue').value)?el('taskDue').value:'',listId:getList(el('taskList').value).id,priority:el('taskPriority').value,repeat:el('taskRepeat').value,completed:old?.completed||false,completedAt:old?.completedAt||'',createdAt:old?.createdAt||now,updatedAt:now};
+    const task={id:el('taskId').value||old?.id||uuid(),title:title.slice(0,160),notes:el('taskNotes').value.slice(0,4000),dueDate:validIsoDate(el('taskDue').value)?el('taskDue').value:'',listId:getList(el('taskList').value).id,priority:el('taskPriority').value,repeat:el('taskRepeat').value,completed:old?.completed||false,completedAt:old?.completedAt||'',checklist:readEditorChecklist(),reminder:validTime(el('taskReminder').value)?el('taskReminder').value:'',reminderNotified:(old&&old.reminder===el('taskReminder').value)?(old.reminderNotified||''):'' ,attachments:ui.editMedia&&ui.editMedia.ownerId===el('taskId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    if(ui.editMedia&&ui.editMedia.ownerId===el('taskId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old) data.tasks[data.tasks.indexOf(old)]=task;else data.tasks.push(task);
     persist();closeDialog('taskDialog');render();notify(old?'Task updated':'Task added');
   }
@@ -431,13 +469,14 @@
     const wasCompleted=t.completed;t.completed=!t.completed;t.completedAt=t.completed?new Date().toISOString():'';t.updatedAt=new Date().toISOString();
     if(!wasCompleted&&t.completed&&t.repeat!=='none'){
       const nextDate=nextRepeatDate(t);const now=new Date().toISOString();
-      data.tasks.push({...t,id:uuid(),dueDate:nextDate,completed:false,completedAt:'',createdAt:now,updatedAt:now});
+      data.tasks.push({...t,id:uuid(),dueDate:nextDate,completed:false,completedAt:'',createdAt:now,updatedAt:now,checklist:(t.checklist||[]).map(s=>({...s,done:false})),attachments:[],reminderNotified:''});
       notify(`Done! Next ${t.repeat} task: ${dateLabel(nextDate)}`);
     } else notify(t.completed?'Task completed ✨':'Task marked active');
     persist();render();
   }
   function deleteTask(){const id=el('taskId').value;if(!id)return;if(!confirm('Delete this task? This cannot be undone.'))return;
-    data.tasks=data.tasks.filter(t=>t.id!==id);persist();closeDialog('taskDialog');render();notify('Task deleted');
+    const item=data.tasks.find(t=>t.id===id);recordDelete('task',item?[item]:[]);deleteMediaFor(item);
+    data.tasks=data.tasks.filter(t=>t.id!==id);persist();closeDialog('taskDialog');render();
   }
   function paintListColors(){el('listColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedListColor===c?'selected':''}" type="button" style="background:${c}" data-action="list-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedListColor===c}"></button>`).join('');}
   function openList(id=''){const list=data.lists.find(l=>l.id===id);el('listDialogTitle').textContent=list?'Edit list':'New list';el('listId').value=list?.id||'';el('listName').value=list?.name||'';ui.selectedListColor=list?.color||PALETTE[0];el('listDelete').hidden=!list||id==='inbox';paintListColors();openDialog('listDialog');setTimeout(()=>el('listName').focus(),25);}
@@ -573,7 +612,7 @@
     }catch(e){notify(e.message||'Unable to read the backup.',true);}finally{el('importFile').value='';}
   }
   function confirmImport(){if(!ui.pendingImport)return;const mode=document.querySelector('input[name="importMode"]:checked')?.value;
-    if(mode==='replace'){if(!confirm('Replace all local Dayloom data with the imported backup? Export your current data first if needed.'))return;data=ui.pendingImport;}
+    if(mode==='replace'){if(!confirm('Replace all local Dayloom data with the imported backup? Export your current data first if needed.'))return;data=ui.pendingImport;mediaClear();}
     else {
       const lists=new Map(data.lists.map(l=>[l.id,l]));for(const l of ui.pendingImport.lists)if(!lists.has(l.id))lists.set(l.id,l);
       const tasks=new Map(data.tasks.map(t=>[t.id,t]));for(const t of ui.pendingImport.tasks){const old=tasks.get(t.id);if(!old||t.updatedAt>old.updatedAt)tasks.set(t.id,t);}
@@ -613,6 +652,14 @@
     else if(a==='import')el('importFile').click();
     else if(a==='ics-export')exportICS();
     else if(a==='ics-import')el('icsFile').click();
+    else if(a==='toggle-subtask'){const task=data.tasks.find(t=>t.id===id);const sub=task?.checklist?.find(s=>s.id===button.dataset.sub);if(sub){sub.done=!sub.done;task.updatedAt=new Date().toISOString();persist();render();}}
+    else if(a==='checklist-add'){const input=el('checklistAdd');const text=input?input.value.trim():'';if(!text)return;ui.editChecklist.push({id:uuid(),text:text.slice(0,120),done:false});input.value='';paintTaskChecklist();input.focus();}
+    else if(a==='checklist-remove'){ui.editChecklist=(ui.editChecklist||[]).filter(s=>s.id!==button.dataset.sub);paintTaskChecklist();}
+    else if(a==='missed-to-today'){const today=todayKey();let n=0;data.tasks.forEach(t=>{if(!t.completed&&t.dueDate&&t.dueDate<today){t.dueDate=today;t.updatedAt=new Date().toISOString();n++;}});if(n){persist();render();notify(`Moved ${n} missed ${n===1?'task':'tasks'} to today.`);}}
+    else if(a==='undo-delete'){undoDelete();}
+    else if(a==='enable-reminders'){if(typeof Notification==='undefined'){notify('This browser does not support notifications.',true);return;}Notification.requestPermission().then(p=>{notify(p==='granted'?'Reminders on — Dayloom will ping you when a task is due.':p==='denied'?'Notifications are blocked for this site. You can allow them in your browser settings.':'Notifications not enabled.');render();});}
+    else if(a==='media-add'){const input=el(button.dataset.kind+'MediaInput');if(input)input.click();}
+    else if(a==='media-remove'){if(ui.editMedia){ui.editMedia.items=ui.editMedia.items.filter(i=>i.id!==button.dataset.id);paintEditorMedia();}}
     else if(a==='selection-cancel'){ui.selection=null;render();}
     else if(a==='selection-delete'){bulkDelete();}
     else if(a==='selection-move'){bulkMove();}
@@ -636,6 +683,7 @@
   document.addEventListener('pointercancel',clearPress);
   document.addEventListener('contextmenu',e=>{if(!pressTimer&&Date.now()-pressFiredAt>600)return;const target=e.target;if(target.closest&&target.closest('.task-row,.event-row,.note-card')&&!target.closest('a'))e.preventDefault();});
   document.addEventListener('click',e=>{if(!suppressClick)return;suppressClick=false;e.stopPropagation();e.preventDefault();},true);
+  document.addEventListener('keydown',e=>{if(e.target.id==='checklistAdd'&&e.key==='Enter'){e.preventDefault();handleAction({dataset:{action:'checklist-add'}});}});
   document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}});
@@ -648,6 +696,9 @@
     else if(id==='settingCompleted')setSetting('showCompleted',e.target.checked);
     else if(id==='importFile')importSelected(e.target.files?.[0]);
     else if(id==='icsFile')importICSFile(e.target.files?.[0]);
+    else if(id==='taskMediaInput')addMedia('task',e.target);
+    else if(id==='eventMediaInput')addMedia('event',e.target);
+    else if(id==='noteMediaInput')addMedia('note',e.target);
     else if(id==='eventAllDay')toggleEventTimes();
     else if(id==='eventStart'&&!el('eventId').value&&(!el('eventEnd').value||el('eventEnd').value<value))el('eventEnd').value=value;
   });
@@ -665,6 +716,6 @@
   window.addEventListener('hashchange',()=>{const next=decodeURIComponent(location.hash.slice(1))||'today';if(next!==ui.view){ui.view=next;ui.selection=null;render();}});
   matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(data.settings.theme==='system')applySettings();});
   const initial=decodeURIComponent(location.hash.slice(1));if(views.some(v=>v.id===initial)||(initial.startsWith('list:')&&data.lists.some(l=>'list:'+l.id===initial)))ui.view=initial;
-  render();if(storageIssue)notify('Saved data could not be loaded. Export backups regularly.',true);
+  render();checkReminders();setInterval(checkReminders,60000);if(storageIssue)notify('Saved data could not be loaded. Export backups regularly.',true);
   if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();

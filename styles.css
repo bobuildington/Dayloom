@@ -151,3 +151,25 @@
 .selection-bar[hidden]{display:none}
 .selection-bar strong{margin-right:auto;font-size:13px;white-space:nowrap}
 .selection-bar select{border:1px solid var(--line);background:var(--surface-alt);border-radius:10px;color:var(--text);padding:9px 10px;font-size:13px;min-height:42px}
+
+.subtask-list{display:grid;gap:6px;margin-top:10px}
+.subtask{display:flex;align-items:center;gap:9px;border:0;background:transparent;text-align:left;padding:4px 0;color:var(--text);font-size:12px}
+.subtask-box{display:inline-grid;place-items:center;flex:none;width:19px;height:19px;border:2px solid #c7c9d7;border-radius:6px;font-size:11px;font-weight:800;color:#fff}
+.subtask.done .subtask-box{background:var(--success);border-color:var(--success)}
+.subtask.done .subtask-text{text-decoration:line-through;color:var(--muted)}
+.checklist-edit-row{display:flex;gap:8px;margin-bottom:8px}
+.checklist-edit-row .field{flex:1}
+.checklist-add{display:flex;gap:8px;margin-bottom:4px}
+.streak-banner{display:flex;gap:13px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 19px;margin-bottom:27px;box-shadow:var(--shadow)}
+.streak-flame{font-size:26px;line-height:1}
+.streak-banner strong{display:block;font-size:15px}
+.streak-banner small{color:var(--muted);font-size:12px}
+.media-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin:4px 0 12px}
+.media-item{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface-alt)}
+.media-item img,.media-item video{width:100%;height:110px;object-fit:cover;display:block}
+.media-item video{object-fit:contain;background:#000}
+.media-remove{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:0;background:#141729a3;color:#fff;font-size:16px;line-height:1;display:grid;place-items:center}
+.toast.has-action{pointer-events:auto}
+.toast.has-action .btn{min-height:32px;padding:6px 12px;margin-left:10px}
+.section-title{flex-wrap:wrap}
+.note-media{display:block;color:var(--muted);font-size:11px;margin-top:4px}

@@ -13,6 +13,12 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Daily, weekly and monthly repeats: completing a repeating task creates its next occurrence (weekly repeats always land on the same weekday, even if you complete the task late)
 - Custom task lists with names and colors, task search, and status/list/priority filters
 - What you missed: overdue tasks on the Today dashboard and a Missed filter in All tasks, so you can check off, reschedule, or delete them
+- Checklists inside tasks: break a task into steps, tick them off right from the task row, and see progress at a glance.
+- Undo for deletes: the confirmation popup after any delete lets you restore what you just removed.
+- Streaks: your day streak and weekly completions on the Today dashboard.
+- What you missed actions: move everything overdue to today in one tap, or select and delete the batch.
+- Reminders: set a time on a task and get a ping when it's due. Works while Dayloom is open — no account or server needed.
+- Photos & videos: attach pictures and clips to tasks, events, and notes. They live in this browser only and aren't included in JSON backups.
 - Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards

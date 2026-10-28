@@ -82,6 +82,9 @@
           <div><label class="field-label" for="taskRepeat">Repeat</label><select id="taskRepeat" class="field"><option value="none">Never</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
         </div>
         <label class="field-label" for="taskNotes">Notes</label><textarea id="taskNotes" class="field notes" maxlength="4000" rows="4" placeholder="Add details, ideas, or a quick reminder..."></textarea><div class="editor-link-preview" id="taskLinkPreview" aria-label="Clickable task links" hidden></div>
+        <label class="field-label" for="taskReminder">Reminder time</label><input id="taskReminder" class="field" type="time">
+        <label class="field-label">Checklist</label><div id="taskChecklist"></div><div class="checklist-add"><input id="checklistAdd" class="field" maxlength="120" placeholder="Add a step..."><button type="button" class="btn" data-action="checklist-add">Add</button></div>
+        <label class="field-label">Photos & videos</label><div id="taskMedia" class="media-strip"></div><div><button type="button" class="btn" data-action="media-add" data-kind="task">Add photo or video</button></div><input type="file" id="taskMediaInput" accept="image/*,video/*" multiple hidden>
         <p class="form-tip">Repeating tasks create their next occurrence when you complete them.</p>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="taskDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="taskDialog">Cancel</button><button class="btn btn-primary" id="taskSave" type="submit">Save task</button></div></div>
@@ -109,6 +112,7 @@
         <p class="form-tip">Repeating events must start and end on the same date. Editing one edits the entire series.</p>
         <label class="field-label">Event color</label><div class="color-palette" id="eventColorPalette"></div>
         <label class="field-label" for="eventNotes">Notes</label><textarea id="eventNotes" class="field notes" maxlength="4000" rows="3" placeholder="Location, details, reminders..."></textarea><div class="editor-link-preview" id="eventLinkPreview" aria-label="Clickable event links" hidden></div>
+        <label class="field-label">Photos & videos</label><div id="eventMedia" class="media-strip"></div><div><button type="button" class="btn" data-action="media-add" data-kind="event">Add photo or video</button></div><input type="file" id="eventMediaInput" accept="image/*,video/*" multiple hidden>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="eventDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="eventDialog">Cancel</button><button class="btn btn-primary" type="submit">Save event</button></div></div>
     </form>
@@ -127,6 +131,7 @@
         <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea><div class="editor-link-preview" id="noteLinkPreview" aria-label="Clickable note links" hidden></div>
         <label class="event-check"><input id="notePinned" type="checkbox"><span>Pin to the top</span></label>
         <label class="field-label">Note color</label><div id="noteColorPalette" class="color-palette"></div>
+        <label class="field-label">Photos & videos</label><div id="noteMedia" class="media-strip"></div><div><button type="button" class="btn" data-action="media-add" data-kind="note">Add photo or video</button></div><input type="file" id="noteMediaInput" accept="image/*,video/*" multiple hidden>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="noteDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="noteDialog">Cancel</button><button class="btn btn-primary" type="submit">Save note</button></div></div>
     </form>
