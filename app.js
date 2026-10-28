@@ -837,6 +837,7 @@
   document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}
+    if(e.target.id==='globalSearchInput')updateGlobalSearch();
     if(e.target.id==='workoutSearch')filterWorkoutExercises();});
   document.addEventListener('change',e=>{const id=e.target.id,value=e.target.value;
     if(id==='statusFilter'){ui.taskStatus=value;updateTaskResults();}
