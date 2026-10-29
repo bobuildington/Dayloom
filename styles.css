@@ -245,3 +245,5 @@
 .app-lock-card h1{margin:0 0 4px}
 .app-lock-card p{color:var(--muted);margin:0 0 16px}
 .app-lock-card .btn{width:100%;min-height:48px;margin-top:12px}
+
+.media-loop{position:absolute;left:6px;bottom:6px;border:0;border-radius:999px;background:#141729a3;color:#fff;font-size:12px;font-weight:700;padding:5px 10px}
