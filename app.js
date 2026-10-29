@@ -162,7 +162,6 @@
     el('mobileNav').innerHTML=`<button class="mobile-menu-btn" data-action="nav-menu" aria-label="Open menu"><span class="menu-icon">\u2630</span><span>${ui.view.startsWith('list:')?escapeHtml(getList(ui.view.slice(5)).name):titles[ui.view]||'Dayloom'}</span></button>`;
     el('topTitle').textContent=ui.view.startsWith('list:')?getList(ui.view.slice(5)).name:(titles[ui.view]||'Dayloom');
     el('headerAddEvent').hidden=ui.view!=='calendar';el('headerAdd').hidden=ui.view==='notes';el('headerAddNote').hidden=ui.view!=='notes';
-    el('mobileAdd').setAttribute('aria-label',ui.view==='calendar'?'Add calendar event':ui.view==='notes'?'Add note':'Add task');
   }
   function openNavMenu(){el('navMenuItems').innerHTML=views.map(v=>`<button class="menu-item ${ui.view===v.id?'active':''}" data-action="nav" data-view="${v.id}">${icon(v.icon)}<span>${v.text}</span>${v.id==='tasks'?`<span class="nav-count">${activeTasks().length}</span>`:''}</button>`).join('')+`<div class="menu-divider"></div>`+data.lists.map(l=>`<button class="menu-item ${ui.view==='list:'+l.id?'active':''}" data-action="nav" data-view="list:${escapeHtml(l.id)}"><i class="list-dot" style="background:${l.color}"></i><span>${escapeHtml(l.name)}</span><span class="nav-count">${data.tasks.filter(t=>t.listId===l.id&&!t.completed).length}</span></button>`).join('');openDialog('navMenuDialog');}
   function head(title,subtitle,actions=''){return `<div class="page-head"><div><div class="eyebrow">YOUR DAY, YOUR WAY</div><h1>${title}</h1><p>${subtitle}</p></div>${actions?`<div class="page-actions">${actions}</div>`:''}</div>`;}
@@ -1008,7 +1007,6 @@
   el('listForm').addEventListener('submit',saveList);el('listDelete').addEventListener('click',deleteList);
   el('importConfirm').addEventListener('click',confirmImport);
   el('headerAdd').addEventListener('click',()=>openTask());el('headerAddNote').addEventListener('click',()=>openNote());el('headerAddEvent').addEventListener('click',()=>openEvent('',ui.view==='calendar'?ui.selectedDate:todayKey()));
-  el('mobileAdd').addEventListener('click',()=>ui.view==='calendar'?openEvent('',ui.selectedDate):ui.view==='notes'?openNote():openTask());
   el('searchFocusBtn').addEventListener('click',()=>{el('globalSearchInput').value='';openDialog('globalSearchDialog');updateGlobalSearch();setTimeout(()=>el('globalSearchInput')?.focus(),25);});
   el('brandLink').addEventListener('click',e=>{e.preventDefault();navigate('today');});
   window.addEventListener('hashchange',()=>{const next=decodeURIComponent(location.hash.slice(1))||'today';if(next!==ui.view){ui.view=next;ui.selection=null;render();}});
