@@ -31,6 +31,7 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - App lock (Settings): when on, Dayloom asks for your password every time it opens and every time you come back to it, until you turn it off in Settings.
 - Fullscreen photos: tap a photo in a note (or task, or event) editor to view it fullscreen; if the browser can't do fullscreen, it opens in a full-screen viewer instead.
 - Auto-relock everything: leaving the app (or switching away and back) re-locks notes, folders, and the app itself — no matter which locks you use. If you were editing a locked note, you get the unlock prompt again when you return.
+- Converter: a Converter tab turns any photo or video into base64 text (downloaded as a .txt file, so galleries won't show it) and turns base64 text or a .txt file back into the original file in your Downloads folder. One file at a time, up to 100 MB. Base64 is camouflage, not encryption.
 - Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards
