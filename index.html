@@ -101,6 +101,30 @@
     </form>
   </dialog>
 
+  <dialog id="exportDialog" class="modal" aria-labelledby="exportDialogTitle">
+    <form id="exportForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">YOUR DATA</div><h2 id="exportDialogTitle">Download backup</h2></div><button class="icon-button" type="button" data-close="exportDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body">
+        <p>Protect this backup with a password? An encrypted backup can only be opened with its password — forget it and the backup is lost. Or download it plain, as before.</p>
+        <label class="field-label" for="exportPw">Password (for a protected backup)</label><input id="exportPw" class="field" type="password" autocomplete="new-password">
+        <label class="field-label" for="exportPw2">Confirm password</label><input id="exportPw2" class="field" type="password" autocomplete="new-password">
+        <p class="form-tip" id="exportError" hidden></p>
+      </div>
+      <div class="modal-footer"><button class="btn" type="button" data-action="export-plain">Download plain</button><div class="modal-footer-right"><button class="btn btn-primary" type="submit">Download protected</button></div></div>
+    </form>
+  </dialog>
+  <dialog id="importPasswordDialog" class="modal" aria-labelledby="importPasswordDialogTitle">
+    <form id="importPasswordForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">ENCRYPTED BACKUP</div><h2 id="importPasswordDialogTitle">Backup password</h2></div><button class="icon-button" type="button" data-close="importPasswordDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body">
+        <p>This backup is password-protected. Enter its password to continue.</p>
+        <label class="field-label" for="importBackupPw">Password</label><input id="importBackupPw" class="field" type="password" autocomplete="current-password" required>
+        <p class="form-tip" id="importBackupError" hidden></p>
+      </div>
+      <div class="modal-footer"><div class="modal-footer-right"><button class="btn btn-primary" type="submit">Unlock backup</button></div></div>
+    </form>
+  </dialog>
+
   <dialog id="taskDialog" class="modal task-modal" aria-labelledby="taskDialogTitle">
     <form id="taskForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">YOUR TO-DO</div><h2 id="taskDialogTitle">New task</h2></div><button class="icon-button" type="button" data-close="taskDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
