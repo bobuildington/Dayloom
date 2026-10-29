@@ -63,6 +63,19 @@
           <button class="btn btn-primary header-add" id="headerAdd"><svg><use href="#i-plus"/></svg><span>New task</span></button>
         </div>
       </header>
+      <div id="appLockScreen" hidden>
+        <div class="app-lock-card">
+          <div class="app-lock-logo">🔒</div>
+          <h1>Dayloom</h1>
+          <p>This app is locked.</p>
+          <form id="appLockForm" novalidate>
+            <label class="field-label" for="appLockInput">Password</label>
+            <input id="appLockInput" class="field" type="password" autocomplete="current-password" required>
+            <p class="form-tip" id="appLockError" hidden></p>
+            <button class="btn btn-primary" type="submit">Unlock</button>
+          </form>
+        </div>
+      </div>
       <main class="main-content" id="mainContent" tabindex="-1"></main>
     </div>
     <nav class="mobile-nav" id="mobileNav" aria-label="Mobile navigation"></nav>
@@ -135,6 +148,7 @@
         <label class="event-check"><input id="notePinned" type="checkbox"><span>Pin to the top</span></label>
         <label class="field-label">Note color</label><div id="noteColorPalette" class="color-palette"></div>
         <label class="field-label">Photos & videos</label><div id="noteMedia" class="media-strip"></div><div><button type="button" class="btn" data-action="media-add" data-kind="note">Add photo or video</button></div><input type="file" id="noteMediaInput" accept="image/*,video/*" multiple hidden>
+        <label class="field-label">Password lock (optional)</label><input id="noteLockPw" class="field" type="password" autocomplete="new-password" placeholder="Set a password to lock this note"><input id="noteLockPw2" class="field" type="password" autocomplete="new-password" placeholder="Confirm password"><label class="event-check" id="noteLockRemoveWrap" hidden><input id="noteLockRemove" type="checkbox"><span>Remove lock on save</span></label><p class="form-tip">A locked note shows no title, text, or photos until you unlock it. If you forget the password there is no way to reset it.</p>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="noteDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="noteDialog">Cancel</button><button class="btn btn-primary" type="submit">Save note</button></div></div>
     </form>
@@ -143,11 +157,21 @@
   <dialog id="folderDialog" class="modal list-modal" aria-labelledby="folderDialogTitle">
     <form id="folderForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">YOUR NOTEBOOK</div><h2 id="folderDialogTitle">New folder</h2></div><button class="icon-button" type="button" data-close="folderDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
-      <div class="modal-body"><input type="hidden" id="folderId"><label class="field-label" for="folderName">Folder name <span class="required">*</span></label><input class="field" id="folderName" maxlength="60" placeholder="e.g. Journal, Work, Ideas" required><label class="field-label">Folder color</label><div class="color-palette" id="folderColorPalette"></div><p class="form-tip">Deleting a folder moves its notes to Unfiled. No notes are deleted.</p></div>
+      <div class="modal-body"><input type="hidden" id="folderId"><label class="field-label" for="folderName">Folder name <span class="required">*</span></label><input class="field" id="folderName" maxlength="60" placeholder="e.g. Journal, Work, Ideas" required><label class="field-label">Folder color</label><div class="color-palette" id="folderColorPalette"></div><p class="form-tip">Deleting a folder moves its notes to Unfiled. No notes are deleted.</p><label class="field-label">Password lock (optional)</label><input id="folderLockPw" class="field" type="password" autocomplete="new-password" placeholder="Set a password to lock this folder"><input id="folderLockPw2" class="field" type="password" autocomplete="new-password" placeholder="Confirm password"><label class="event-check" id="folderLockRemoveWrap" hidden><input id="folderLockRemove" type="checkbox"><span>Remove lock on save</span></label><p class="form-tip">A locked folder hides its name and all its notes until you unlock it. If you forget the password there is no way to reset it.</p></div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="folderDelete" hidden>Delete folder</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="folderDialog">Cancel</button><button class="btn btn-primary" type="submit">Save folder</button></div></div>
     </form>
   </dialog>
 
+  <dialog id="unlockDialog" class="modal list-modal" aria-labelledby="unlockDialogTitle">
+    <form id="unlockForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">LOCKED</div><h2 id="unlockDialogTitle">Unlock</h2></div><button class="icon-button" type="button" data-close="unlockDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body"><label class="field-label" for="unlockPassword">Password</label><input id="unlockPassword" class="field" type="password" autocomplete="current-password" required><p class="form-tip" id="unlockError" hidden></p></div>
+      <div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="unlockDialog">Cancel</button><button class="btn btn-primary" type="submit">Unlock</button></div></div>
+    </form>
+  </dialog>
+  <dialog id="mediaLightbox" class="modal lightbox-modal" aria-label="Photo fullscreen">
+    <div class="modal-body lightbox-body"><button class="icon-button lightbox-close" type="button" data-close="mediaLightbox" aria-label="Close"><svg><use href="#i-x"/></svg></button><img id="lightboxImg" data-close="mediaLightbox" alt="Photo"></div>
+  </dialog>
   <dialog id="listDialog" class="modal list-modal" aria-labelledby="listDialogTitle">
     <form id="listForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">ORGANIZE</div><h2 id="listDialogTitle">New list</h2></div><button class="icon-button" type="button" data-close="listDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>

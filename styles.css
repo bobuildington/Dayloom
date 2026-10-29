@@ -226,3 +226,22 @@
 .workout-tool-btn{min-height:34px;padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:var(--surface-alt);color:var(--text);font-weight:700;font-size:12px}
 .workout-day-timer{flex-basis:100%;margin-top:10px}
 .workout-day-timer .timer-current{margin-bottom:0}
+
+.note-card.is-locked .note-card-open{display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 16px;text-align:center}
+.note-lock-icon{font-size:30px;line-height:1}
+.locked-panel{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 20px;box-shadow:var(--shadow);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px}
+.locked-panel h3{margin:0}
+.locked-panel p{margin:0;color:var(--muted)}
+.media-item img{cursor:zoom-in}
+.media-fullscreen-btn{position:absolute;top:6px;right:38px;width:26px;height:26px;border-radius:50%;border:0;background:#141729a3;color:#fff;font-size:14px;line-height:1;display:grid;place-items:center}
+.lightbox-modal{max-width:96vw;width:auto}
+.lightbox-modal .modal-body{padding:8px;position:relative}
+.lightbox-body img{width:100%;height:auto;max-height:92vh;object-fit:contain;display:block;cursor:zoom-out}
+.lightbox-close{position:absolute;top:12px;right:12px;z-index:2;background:var(--surface)}
+#appLockScreen{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+#appLockScreen[hidden]{display:none}
+.app-lock-card{width:100%;max-width:340px;text-align:center}
+.app-lock-logo{font-size:46px;line-height:1;margin-bottom:8px}
+.app-lock-card h1{margin:0 0 4px}
+.app-lock-card p{color:var(--muted);margin:0 0 16px}
+.app-lock-card .btn{width:100%;min-height:48px;margin-top:12px}
