@@ -96,3 +96,7 @@ Paste `https://example.com` or `www.example.com` into task notes, regular notes,
 - On phones the bottom tab bar is replaced by a single Menu button showing the current section. Tapping it opens a sheet with all sections plus your lists; picking one navigates and closes the sheet. The desktop sidebar is unchanged.
 - Opening an existing note, task, event, folder or list no longer focuses the title field, so the keyboard stays down until you tap a field. New items still focus the title on desktop only; on touch devices nothing autofocuses. Password dialogs, search, and empty-title error refocuses still focus as before.
 - Bigger touch targets on phones: media buttons 32px, color swatches 36px, task checkboxes 28px. Buttons use touch-action:manipulation to avoid double-tap zoom delays.
+
+## Converter audio support (2026-10-29)
+
+- File → text now accepts audio files too (mp3, wav, ogg, m4a), same 100 MB cap as photos/videos. Text → file and Preview already handled audio by name (audio player with Loop switch); the byte-sniffer now also recognizes mp3 files (ID3 tag or MPEG frame sync), so a restore from a .txt without an .mp3 name still gets the extension and previews as audio.
