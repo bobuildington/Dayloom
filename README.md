@@ -100,3 +100,10 @@ Paste `https://example.com` or `www.example.com` into task notes, regular notes,
 ## Converter audio support (2026-10-29)
 
 - File → text now accepts audio files too (mp3, wav, ogg, m4a), same 100 MB cap as photos/videos. Text → file and Preview already handled audio by name (audio player with Loop switch); the byte-sniffer now also recognizes mp3 files (ID3 tag or MPEG frame sync), so a restore from a .txt without an .mp3 name still gets the extension and previews as audio.
+
+## Secret folder (2026-10-29)
+
+- A small lock icon sits next to the "App lock" heading in Settings. It carries no label, title, or hint about what it does. Tap it 5 times in quick succession (taps more than 2 seconds apart restart the count) to open the secret folder flow.
+- First time: a setup dialog asks if you want a secret folder — the only setup is a password. The folder is a normal note folder (id "secret", named "Secret") with a salted SHA-256 lock, session-unlocked on setup, and it travels in JSON backups like other locked folders.
+- When locked, the folder is invisible, not just locked: no row in the Notes folder list, no locked panel, no notes in search or counts, and it is excluded from editor/move dropdowns (existing locked-folder rules). Relock (app hide, Lock all, reload) also resets the Notes view away from it. Five taps while locked opens the normal unlock dialog; after unlocking it navigates to Notes.
+- Same no-reset rule as every other lock: forget the password and the folder cannot be recovered.

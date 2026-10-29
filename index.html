@@ -88,6 +88,19 @@
     <div class="modal-body"><div id="navMenuItems" class="menu-list"></div></div>
   </dialog>
 
+  <dialog id="secretSetupDialog" class="modal" aria-labelledby="secretSetupDialogTitle">
+    <form id="secretSetupForm" novalidate>
+      <div class="modal-header"><div><div class="eyebrow">PRIVATE SPACE</div><h2 id="secretSetupDialogTitle">Secret folder</h2></div><button class="icon-button" type="button" data-close="secretSetupDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+      <div class="modal-body">
+        <p>Want a secret folder? Pick a password — that's the whole setup. Notes inside stay hidden until you unlock it from here.</p>
+        <label class="field-label" for="secretPw">Password</label><input id="secretPw" class="field" type="password" autocomplete="new-password" required>
+        <label class="field-label" for="secretPw2">Confirm password</label><input id="secretPw2" class="field" type="password" autocomplete="new-password" required>
+        <p class="form-tip" id="secretSetupError" hidden></p>
+      </div>
+      <div class="modal-footer"><div class="modal-footer-right"><button class="btn btn-primary" type="submit">Set up</button></div></div>
+    </form>
+  </dialog>
+
   <dialog id="taskDialog" class="modal task-modal" aria-labelledby="taskDialogTitle">
     <form id="taskForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">YOUR TO-DO</div><h2 id="taskDialogTitle">New task</h2></div><button class="icon-button" type="button" data-close="taskDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
