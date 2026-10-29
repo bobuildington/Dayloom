@@ -137,7 +137,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,converterFile:null,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,converterFile:null,relockedOnHide:false,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null};
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -616,8 +616,9 @@
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
   function closeAllDialogs(){document.querySelectorAll('dialog[open]').forEach(d=>{if(typeof d.close==='function')d.close();else d.removeAttribute('open');});}
   function onVisibilityChange(){
-    if(document.hidden){ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(data.settings.appLock){ui.appUnlocked=false;showAppLock();}return;}
-    if(data.settings.appLock&&!ui.appUnlocked){closeAllDialogs();showAppLock();return;}
+    if(document.hidden){ui.relockedOnHide=ui.unlockedNotes.size>0||ui.unlockedFolders.size>0;ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(data.settings.appLock){ui.appUnlocked=false;showAppLock();}return;}
+    if(data.settings.appLock&&!ui.appUnlocked){ui.relockedOnHide=false;closeAllDialogs();showAppLock();return;}
+    if(ui.relockedOnHide){ui.relockedOnHide=false;render();}
     const nd=el('noteDialog');
     if(nd&&nd.open){const n=data.notes.find(x=>x.id===el('noteId').value);if(n&&noteHidden(n)){closeDialog('noteDialog');openUnlock(noteLocked(n)?'note':'folder',noteLocked(n)?n.id:n.folderId);return;}}
     const fd=el('folderDialog');
