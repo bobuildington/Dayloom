@@ -90,3 +90,9 @@ New exports are Dayloom JSON backup **version 4**, including calendar events, no
 ## Clickable web links
 
 Paste `https://example.com` or `www.example.com` into task notes, regular notes, or calendar event notes. Dayloom displays tappable links below task rows, note cards and calendar event entries, as well as inside each editor. Links open in a new tab, plain text stays editable, and only HTTP/HTTPS addresses are linked. Your stored notes, tasks and events and backup format are unchanged.
+
+## Mobile navigation + no keyboard popups (2026-10-29)
+
+- On phones the bottom tab bar is replaced by a single Menu button showing the current section. Tapping it opens a sheet with all sections plus your lists; picking one navigates and closes the sheet. The desktop sidebar is unchanged.
+- Opening an existing note, task, event, folder or list no longer focuses the title field, so the keyboard stays down until you tap a field. New items still focus the title on desktop only; on touch devices nothing autofocuses. Password dialogs, search, and empty-title error refocuses still focus as before.
+- Bigger touch targets on phones: media buttons 32px, color swatches 36px, task checkboxes 28px. Buttons use touch-action:manipulation to avoid double-tap zoom delays.

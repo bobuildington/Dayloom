@@ -83,6 +83,11 @@
     <button class="mobile-fab" id="mobileAdd" aria-label="Add task"><svg><use href="#i-plus"/></svg></button>
   </div>
 
+  <dialog id="navMenuDialog" class="modal" aria-labelledby="navMenuDialogTitle">
+    <div class="modal-header"><div><div class="eyebrow">GO TO</div><h2 id="navMenuDialogTitle">Menu</h2></div><button class="icon-button" type="button" data-close="navMenuDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body"><div id="navMenuItems" class="menu-list"></div></div>
+  </dialog>
+
   <dialog id="taskDialog" class="modal task-modal" aria-labelledby="taskDialogTitle">
     <form id="taskForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">YOUR TO-DO</div><h2 id="taskDialogTitle">New task</h2></div><button class="icon-button" type="button" data-close="taskDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>

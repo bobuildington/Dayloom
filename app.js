@@ -158,12 +158,13 @@
     el('sideNav').innerHTML=views.map(v=>`<button class="nav-item ${ui.view===v.id?'active':''}" data-action="nav" data-view="${v.id}">${icon(v.icon)}<span>${v.text}</span>${v.id==='tasks'?`<span class="nav-count">${activeTasks().length}</span>`:''}</button>`).join('')+
       `<div class="side-divider"></div><div class="side-list-label">MY LISTS<button class="text-icon-button" data-action="new-list" aria-label="Add list">+</button></div>`+
       data.lists.map(l=>`<button class="nav-item ${ui.view==='list:'+l.id?'active':''}" data-action="nav" data-view="list:${escapeHtml(l.id)}"><i class="list-dot" style="background:${l.color}"></i><span>${escapeHtml(l.name)}</span><span class="nav-count">${data.tasks.filter(t=>t.listId===l.id&&!t.completed).length}</span></button>`).join('');
-    el('mobileNav').innerHTML=views.map(v=>`<button class="${(ui.view===v.id||(v.id==='lists'&&ui.view.startsWith('list:')))?'active':''}" data-action="nav" data-view="${v.id}" aria-label="${v.text}">${icon(v.icon)}<span>${v.id==='tasks'?'Tasks':v.id==='lists'?'Lists':v.text}</span></button>`).join('');
-    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',workouts:'Workouts',lists:'My lists',notes:'Notes',settings:'Settings'};
+    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',workouts:'Workouts',lists:'My lists',notes:'Notes',converter:'Converter',settings:'Settings'};
+    el('mobileNav').innerHTML=`<button class="mobile-menu-btn" data-action="nav-menu" aria-label="Open menu"><span class="menu-icon">\u2630</span><span>${ui.view.startsWith('list:')?escapeHtml(getList(ui.view.slice(5)).name):titles[ui.view]||'Dayloom'}</span></button>`;
     el('topTitle').textContent=ui.view.startsWith('list:')?getList(ui.view.slice(5)).name:(titles[ui.view]||'Dayloom');
     el('headerAddEvent').hidden=ui.view!=='calendar';el('headerAdd').hidden=ui.view==='notes';el('headerAddNote').hidden=ui.view!=='notes';
     el('mobileAdd').setAttribute('aria-label',ui.view==='calendar'?'Add calendar event':ui.view==='notes'?'Add note':'Add task');
   }
+  function openNavMenu(){el('navMenuItems').innerHTML=views.map(v=>`<button class="menu-item ${ui.view===v.id?'active':''}" data-action="nav" data-view="${v.id}">${icon(v.icon)}<span>${v.text}</span>${v.id==='tasks'?`<span class="nav-count">${activeTasks().length}</span>`:''}</button>`).join('')+`<div class="menu-divider"></div>`+data.lists.map(l=>`<button class="menu-item ${ui.view==='list:'+l.id?'active':''}" data-action="nav" data-view="list:${escapeHtml(l.id)}"><i class="list-dot" style="background:${l.color}"></i><span>${escapeHtml(l.name)}</span><span class="nav-count">${data.tasks.filter(t=>t.listId===l.id&&!t.completed).length}</span></button>`).join('');openDialog('navMenuDialog');}
   function head(title,subtitle,actions=''){return `<div class="page-head"><div><div class="eyebrow">YOUR DAY, YOUR WAY</div><h1>${title}</h1><p>${subtitle}</p></div>${actions?`<div class="page-actions">${actions}</div>`:''}</div>`;}
   function empty(title,message,action=''){return `<div class="empty-state"><div class="empty-icon">${icon('sparkle')}</div><h3>${title}</h3><p>${message}</p>${action?`<button class="btn btn-primary" data-action="${action}">${icon('plus')} Add task</button>`:''}</div>`;}
   function taskRow(t){
@@ -247,6 +248,7 @@
   }
   function paintEventColors(){el('eventColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedEventColor===c?'selected':''}" type="button" style="background:${c}" data-action="event-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedEventColor===c}"></button>`).join('');}
   function toggleEventTimes(){el('eventTimeFields').hidden=el('eventAllDay').checked;}
+  function focusOnOpen(isNew,fieldId){if(!isNew)return;if(typeof matchMedia==='function'&&matchMedia('(pointer: coarse)').matches)return;setTimeout(()=>{const f=el(fieldId);if(f)f.focus();},25);}
   function openEvent(id='',date=''){
     const e=data.events.find(x=>x.id===id);
     const selected=date||ui.selectedDate||todayKey();
@@ -258,7 +260,7 @@
     el('eventStartTime').value=e?.startTime||'09:00';el('eventEndTime').value=e?.endTime||'10:00';
     el('eventRepeat').value=e?.repeat||'none';el('eventNotes').value=e?.notes||'';
     ui.selectedEventColor=e?.color||data.settings.accent;paintEventColors();toggleEventTimes();
-    el('eventDelete').hidden=!e;refreshWebLinks('eventNotes','eventTitle','eventLinkPreview','eventVideoPreview');openDialog('eventDialog');setTimeout(()=>el('eventTitle').focus(),25);
+    el('eventDelete').hidden=!e;refreshWebLinks('eventNotes','eventTitle','eventLinkPreview','eventVideoPreview');openDialog('eventDialog');focusOnOpen(!e,'eventTitle');
   }
   function saveEvent(evt){
     evt.preventDefault();const title=el('eventTitle').value.trim();if(!title){el('eventTitle').reportValidity();el('eventTitle').focus();return;}
@@ -397,7 +399,7 @@
     el('noteFolder').innerHTML='<option value="">Unfiled</option>'+data.noteFolders.filter(f=>!folderLocked(f)).map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
     ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;el('noteLockPw').value='';el('noteLockPw2').value='';el('noteLockRemove').checked=false;el('noteLockRemoveWrap').hidden=!note?.lockHash;
-    refreshWebLinks('noteBody','noteTitle','noteLinkPreview','noteVideoPreview');openDialog('noteDialog');setTimeout(()=>el('noteTitle').focus(),25);
+    refreshWebLinks('noteBody','noteTitle','noteLinkPreview','noteVideoPreview');openDialog('noteDialog');focusOnOpen(!note,'noteTitle');
   }
   async function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
@@ -427,8 +429,7 @@
     if(folder&&folderLocked(folder)){openUnlock('folder',folder.id);return;}
     el('folderDialogTitle').textContent=folder?'Edit folder':'New folder';el('folderId').value=folder?.id||'';
     el('folderName').value=folder?.name||'';ui.selectedFolderColor=folder?.color||data.settings.accent;
-    el('folderDelete').hidden=!folder;paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=!folder?.lockHash;openDialog('folderDialog');
-    setTimeout(()=>el('folderName').focus(),20);
+    el('folderDelete').hidden=!folder;paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=!folder?.lockHash;openDialog('folderDialog');focusOnOpen(!folder,'folderName');
   }
   async function saveFolder(e){
     e.preventDefault();const name=el('folderName').value.trim().slice(0,60);if(!name){el('folderName').reportValidity();return;}
@@ -667,7 +668,7 @@
     el('taskPriority').value=task?.priority||'none';el('taskRepeat').value=task?.repeat||'none';el('taskNotes').value=task?.notes||'';el('taskReminder').value=task?.reminder||'';el('taskRepeatUntil').value=task?.repeatUntil||'';ui.editRepeatDays=(task?.repeatDays||[]).slice();paintRepeatDays();toggleRepeatFields();
     ui.editChecklist=(task?.checklist||[]).map(s=>({...s}));paintTaskChecklist();
     ui.editMedia={kind:'task',ownerId:el('taskId').value,original:(task?.attachments||[]).map(a=>({...a})),items:(task?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
-    el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview','taskVideoPreview');openDialog('taskDialog');setTimeout(()=>el('taskTitle').focus(),25);
+    el('taskDelete').hidden=!task;refreshWebLinks('taskNotes','taskTitle','taskLinkPreview','taskVideoPreview');openDialog('taskDialog');focusOnOpen(!task,'taskTitle');
   }
   function saveTask(event){event.preventDefault();
     const title=el('taskTitle').value.trim();if(!title){el('taskTitle').reportValidity();el('taskTitle').focus();return;}
@@ -704,7 +705,7 @@
     data.tasks=data.tasks.filter(t=>t.id!==id);persist();closeDialog('taskDialog');render();
   }
   function paintListColors(){el('listColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedListColor===c?'selected':''}" type="button" style="background:${c}" data-action="list-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedListColor===c}"></button>`).join('');}
-  function openList(id=''){const list=data.lists.find(l=>l.id===id);el('listDialogTitle').textContent=list?'Edit list':'New list';el('listId').value=list?.id||'';el('listName').value=list?.name||'';ui.selectedListColor=list?.color||PALETTE[0];el('listDelete').hidden=!list||id==='inbox';paintListColors();openDialog('listDialog');setTimeout(()=>el('listName').focus(),25);}
+  function openList(id=''){const list=data.lists.find(l=>l.id===id);el('listDialogTitle').textContent=list?'Edit list':'New list';el('listId').value=list?.id||'';el('listName').value=list?.name||'';ui.selectedListColor=list?.color||PALETTE[0];el('listDelete').hidden=!list||id==='inbox';paintListColors();openDialog('listDialog');focusOnOpen(!list,'listName');}
   function saveList(event){event.preventDefault();const name=el('listName').value.trim();if(!name){el('listName').reportValidity();return;}const id=el('listId').value;
     const old=data.lists.find(l=>l.id===id);if(old){old.name=name.slice(0,50);old.color=ui.selectedListColor;}else data.lists.push({id:uuid(),name:name.slice(0,50),color:ui.selectedListColor});
     persist();closeDialog('listDialog');render();notify(old?'List updated':'List created');}
@@ -853,7 +854,8 @@
   }
   function setSetting(key,value){data.settings[key]=value;persist();render();}
   function handleAction(button){const a=button.dataset.action,id=button.dataset.id||'';
-    if(a==='nav')navigate(button.dataset.view);
+    if(a==='nav'){closeDialog('navMenuDialog');navigate(button.dataset.view);}
+    else if(a==='nav-menu')openNavMenu();
     else if(a==='new-task')openTask('',button.dataset.date||'',button.dataset.list||'');
     else if(a==='edit-task')openTask(id);
     else if(a==='new-event')openEvent('',button.dataset.date||todayKey());
