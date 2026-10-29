@@ -1,4 +1,4 @@
-const CACHE = 'dayloom-static-v7';
+const CACHE = 'dayloom-static-v8';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './icon.svg', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -12,4 +12,9 @@ self.addEventListener('fetch', event => {
     if (response.ok) { const copy = response.clone(); caches.open(CACHE).then(cache => cache.put(event.request, copy)); }
     return response;
   }).catch(() => caches.match(event.request).then(result => result || (event.request.mode === 'navigate' ? caches.match('./index.html') : Response.error()))));
+});
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'refresh-cache') {
+    event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).catch(() => {}));
+  }
 });
