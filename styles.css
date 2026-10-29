@@ -247,3 +247,8 @@
 .app-lock-card .btn{width:100%;min-height:48px;margin-top:12px}
 
 .media-loop{position:absolute;left:6px;bottom:6px;border:0;border-radius:999px;background:#141729a3;color:#fff;font-size:12px;font-weight:700;padding:5px 10px}
+
+.convert-preview img,.convert-preview video{width:100%;max-height:320px;object-fit:contain;background:#000;border-radius:12px;display:block}
+.convert-preview audio{width:100%;margin-top:8px}
+.convert-preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.convert-preview-files{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
