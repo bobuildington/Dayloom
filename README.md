@@ -18,7 +18,7 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Streaks: your day streak and weekly completions on the Today dashboard.
 - What you missed actions: move everything overdue to today in one tap, or select and delete the batch.
 - Reminders: set a time on a task and get a ping when it's due. Works while Dayloom is open — no account or server needed.
-- Photos & videos: attach pictures and clips to tasks, events, and notes. They live in this browser only and aren't included in JSON backups.
+- Photos & videos: attach pictures and clips to tasks, events, and notes. They live in this browser only, and they ARE included in JSON backups (encoded as text inside the same file), so they come back when you restore. Backups with lots of media can get big — imports accept files up to 250 MB.
 - Workouts tab: a dedicated view for training — this week's sessions with Done / Today / Missed states, week-by-week browsing, today's session with tickable checklists, plan notes, and timers that live only on this tab.
 - Timers: Cardio intervals (5 min warm up, 8 rounds of 30 sec hard / 60 sec easy, 3 min cool down), Rest (60 sec), and Plank (40 sec), with a beep and a buzz on every phase change. A timer keeps counting if you leave the tab and survives a reload.
 - Custom weekday repeats: repeat a task on specific weekdays (for example Mon, Wed, Fri) instead of one task per day.
@@ -30,6 +30,7 @@ No build step, account, tracking, API key, or database required. Tasks, calendar
 - Password locks: notes and note folders can each be locked with their own password from their editor. A locked note shows only "Locked note" — no title, text, photos, or links — and locked notes never appear in search results. A locked folder hides its name, its note count, and all its notes until you unlock it. Unlocks last only until you leave the app or tap Lock all; locks travel with JSON backups. There is no password reset — a forgotten password cannot be recovered.
 - App lock (Settings): when on, Dayloom asks for your password every time it opens and every time you come back to it, until you turn it off in Settings.
 - Fullscreen photos: tap a photo in a note (or task, or event) editor to view it fullscreen; if the browser can't do fullscreen, it opens in a full-screen viewer instead.
+- Auto-relock everything: leaving the app (or switching away and back) re-locks notes, folders, and the app itself — no matter which locks you use. If you were editing a locked note, you get the unlock prompt again when you return.
 - Press and hold to select: long-press a task, event, or note to select it, tap more to add them, then move or delete the whole batch at once
 - Adjustable light/dark/system themes, accent colors and compact density
 - Dedicated **Notes** tab with custom colored folders (create, rename, delete), cross-folder search, pinned notes and color-coded note cards
