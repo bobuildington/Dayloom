@@ -47,7 +47,7 @@
   const parseLocalDate = value => { if(!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null; const [y,m,d]=value.split('-').map(Number); const result=new Date(y,m-1,d); return result.getFullYear()===y && result.getMonth()===m-1 && result.getDate()===d ? result : null; };
   const todayKey = () => localDate(new Date());
   const dateLabel = (value,opts={month:'short',day:'numeric'}) => { const d=parseLocalDate(value); return d ? d.toLocaleDateString(undefined,opts) : 'No date'; };
-  const defaultData = () => ({lists:[{id:'inbox',name:'Inbox',color:'#6457e8'},{id:'personal',name:'Personal',color:'#3ca99b'},{id:'work',name:'Work',color:'#e99d64'}],tasks:[],events:[],notes:[],noteFolders:[],settings:{theme:'system',accent:'#6457e8',weekStart:0,compact:false,showCompleted:true,appLock:null}});
+  const defaultData = () => ({lists:[{id:'inbox',name:'Inbox',color:'#6457e8'},{id:'personal',name:'Personal',color:'#3ca99b'},{id:'work',name:'Work',color:'#e99d64'}],tasks:[],events:[],notes:[],noteFolders:[],secretAlbums:[],settings:{theme:'system',accent:'#6457e8',weekStart:0,compact:false,showCompleted:true,appLock:null}});
   const safeString = (v,max=160) => typeof v === 'string' ? v.slice(0,max) : '';
   const validColor = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v : '#6457e8';
   const validId = v => typeof v === 'string' && v.length > 0 && v.length < 120 && /^[a-zA-Z0-9_-]+$/.test(v);
@@ -64,7 +64,7 @@
   async function makeLock(password){const salt=makeSalt();return {salt,hash:await hashPassword(salt,password)};}
   async function verifyLock(item,password){const l=lockFields(item);if(!l.hash)return false;return (await hashPassword(l.salt,password))===l.hash;}
   const parseData = raw => {
-    if(!raw || typeof raw !== 'object' || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.lists.length>500 || raw.tasks.length>10000 || (raw.events!==undefined && (!Array.isArray(raw.events) || raw.events.length>10000)) || (raw.notes!==undefined && (!Array.isArray(raw.notes) || raw.notes.length>2500)) || (raw.noteFolders!==undefined && (!Array.isArray(raw.noteFolders) || raw.noteFolders.length>250))) throw new Error('This backup is not a valid Dayloom data file.');
+    if(!raw || typeof raw !== 'object' || !Array.isArray(raw.lists) || !Array.isArray(raw.tasks) || raw.lists.length>500 || raw.tasks.length>10000 || (raw.events!==undefined && (!Array.isArray(raw.events) || raw.events.length>10000)) || (raw.notes!==undefined && (!Array.isArray(raw.notes) || raw.notes.length>2500)) || (raw.noteFolders!==undefined && (!Array.isArray(raw.noteFolders) || raw.noteFolders.length>250)) || (raw.secretAlbums!==undefined && (!Array.isArray(raw.secretAlbums) || raw.secretAlbums.length>100))) throw new Error('This backup is not a valid Dayloom data file.');
     const base=defaultData();
     const listMap=new Map();
     for(const item of raw.lists){
@@ -115,6 +115,11 @@
       if(!item || !validId(item.id) || !safeString(item.name,60).trim()) continue;
       folderMap.set(item.id,{id:item.id,name:safeString(item.name,60),color:validColor(item.color),lockSalt:lockFields(item).salt,lockHash:lockFields(item).hash});
     }
+    const albumMap=new Map();
+    for(const item of raw.secretAlbums || []){
+      if(!item || !validId(item.id) || !safeString(item.name,100).trim()) continue;
+      albumMap.set(item.id,{id:item.id,name:safeString(item.name,100),mediaIds:Array.isArray(item.mediaIds)?item.mediaIds.filter(x=>typeof x==='string'&&validId(x)).slice(0,1000):[]});
+    }
     const noteMap=new Map();
     for(const item of raw.notes || []){
       if(!item || !validId(item.id) || !safeString(item.title,160).trim()) continue;
@@ -127,7 +132,7 @@
       });
     }
     const incoming=raw.settings&&typeof raw.settings==='object'?raw.settings:{};
-    return {lists:[...listMap.values()],tasks:[...taskMap.values()],events:[...eventMap.values()],notes:[...noteMap.values()],noteFolders:[...folderMap.values()],settings:{
+    return {lists:[...listMap.values()],tasks:[...taskMap.values()],events:[...eventMap.values()],notes:[...noteMap.values()],noteFolders:[...folderMap.values()],secretAlbums:[...albumMap.values()],settings:{
       theme:['system','light','dark'].includes(incoming.theme)?incoming.theme:base.settings.theme,
       accent:validColor(incoming.accent),weekStart:incoming.weekStart===1?1:0,
       compact:incoming.compact===true,showCompleted:incoming.showCompleted!==false,appLock:lockFields(incoming.appLock||{}).hash?{salt:lockFields(incoming.appLock).salt,hash:lockFields(incoming.appLock).hash}:null
@@ -137,7 +142,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,pendingEncrypted:null,converterFile:null,converterBatch:null,converterPreview:null,converterTxtAutoName:'',converterTxtFiles:null,relockedOnHide:false,escFromFullscreen:0,secretTaps:0,secretTapAt:0,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null,deferredPrompt:null,offlineReady:null,viewer:null};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,pendingEncrypted:null,converterFile:null,converterBatch:null,converterPreview:null,converterTxtAutoName:'',converterTxtFiles:null,relockedOnHide:false,escFromFullscreen:0,secretTaps:0,secretTapAt:0,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null,deferredPrompt:null,offlineReady:null,viewer:null,secretTab:'notes',secretAlbum:null,albumPick:new Set(),albumEditId:null,galleryURLs:[],pickerURLs:[]};
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -149,8 +154,8 @@
     const themeTag=document.querySelector('meta[name="theme-color"]');if(themeTag)themeTag.content=dark?'#1e2031':'#f6f7fb';
   }
   function navigate(view,force){if(!force&&ui.view==='secret'&&view!=='secret')return;location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
-  function enterSecret(){ui.noteFolder='secret';navigate('secret');}
-  function exitSecret(){ui.unlockedFolders.delete('secret');ui.noteFolder='all';navigate('notes',true);notify('Secret folder locked.');}
+  function enterSecret(){ui.noteFolder='secret';ui.secretTab='notes';ui.secretAlbum=null;navigate('secret');}
+  function exitSecret(){ui.unlockedFolders.delete('secret');ui.noteFolder='all';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();navigate('notes',true);notify('Secret folder locked.');}
   const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'workouts',text:'Workouts',icon:'dumbbell'},{id:'lists',text:'My lists',icon:'layers'},{id:'notes',text:'Notes',icon:'note'},{id:'converter',text:'Converter',icon:'swap'},{id:'settings',text:'Settings',icon:'settings'}];
   function getList(id){return data.lists.find(l=>l.id===id)||data.lists.find(l=>l.id==='inbox')||defaultData().lists[0];}
   const activeTasks=() => data.tasks.filter(t=>!t.completed);
@@ -199,14 +204,17 @@
   async function paintEditorMedia(){const kind=ui.editMedia?.kind;if(!kind)return;const box=el(kind+'Media');if(!box)return;(ui.mediaURLs||[]).forEach(u=>URL.revokeObjectURL(u));ui.mediaURLs=[];const items=ui.editMedia.items||[];if(!items.length){box.innerHTML='<p class="form-tip">No photos or videos yet.</p>';return;}const parts=[];const missing=[];for(const ref of items){try{const att=await mediaGet(ref.id);if(!att||!att.blob){missing.push(ref.id);continue;}const url=URL.createObjectURL(att.blob);ui.mediaURLs.push(url);parts.push(att.type==='video'?`<div class="media-item"><video src="${url}" controls preload="metadata"${ref.loop?' loop':''}></video><button type="button" class="media-fullscreen-btn" data-action="media-video-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-loop" data-action="media-loop" data-id="${ref.id}" aria-label="Toggle loop">${ref.loop?'↻ Loop on':'↻ Loop off'}</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`:`<div class="media-item"><img src="${url}" alt="${escapeHtml(att.name||'photo')}" data-action="media-fullscreen"><button type="button" class="media-fullscreen-btn" data-action="media-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`);}catch(e){missing.push(ref.id);}}if(missing.length)ui.editMedia.items=ui.editMedia.items.filter(i=>!missing.includes(i.id));box.innerHTML=parts.join('')||'<p class="form-tip">No photos or videos yet.</p>';}
   function viewerVideos(){return (ui.viewer?.items||[]).filter(i=>i.type==='video');}
   function viewerNextVideoIndex(){const items=ui.viewer.items,vids=items.filter(i=>i.type==='video');if(!vids.length)return -1;const cur=items[ui.viewer.index];let pos=vids.findIndex(v=>v.id===cur?.id);if(pos<0)pos=-1;if(pos+1<vids.length)return items.indexOf(vids[pos+1]);return ui.viewer.loopAll?items.indexOf(vids[0]):-1;}
-  async function openMediaViewer(startIndex){const items=(ui.editMedia?.items||[]).slice();if(!items.length)return;const urls={};for(const ref of items){try{const att=await mediaGet(ref.id);if(att&&att.blob)urls[ref.id]=URL.createObjectURL(att.blob);}catch(e){}}const live=items.filter(i=>urls[i.id]);if(!live.length){notify('This media is no longer available.',true);return;}let idx=live.indexOf(items[startIndex]);if(idx<0)idx=0;ui.viewer={items:live,urls,index:idx,playAll:false,loopAll:false};paintViewerItem();const d=el('mediaViewer');openDialog('mediaViewer');try{const req=d.requestFullscreen?d.requestFullscreen.bind(d):(d.webkitRequestFullscreen?d.webkitRequestFullscreen.bind(d):null);if(req){const p=req();if(p&&p.catch)p.catch(()=>{});}}catch(e){}}
-  function paintViewerItem(){const v=ui.viewer;if(!v)return;const ref=v.items[v.index],url=v.urls[ref.id];const img=el('viewerImg'),vid=el('viewerVideo');el('viewerCount').textContent=(v.index+1)+' of '+v.items.length;const pa=el('viewerPlayAll');if(pa)pa.textContent=v.playAll?'Stop':'Play all';const la=el('viewerLoopAll');if(la){la.textContent=v.loopAll?'↻ Loop all on':'↻ Loop all off';la.setAttribute('aria-pressed',v.loopAll?'true':'false');}if(ref.type==='video'){img.hidden=true;img.removeAttribute('src');vid.hidden=false;vid.src=url;vid.loop=v.playAll?false:!!ref.loop;const p=vid.play();if(p&&p.catch)p.catch(()=>{});}else{vid.pause();vid.hidden=true;vid.removeAttribute('src');try{vid.load();}catch(e){}img.hidden=false;img.src=url;}}
+  async function openMediaViewer(startIndex,itemsOverride,opts){const items=((itemsOverride||ui.editMedia?.items||[]).slice());if(!items.length)return;const urls={};for(const ref of items){try{const att=await mediaGet(ref.id);if(att&&att.blob)urls[ref.id]=URL.createObjectURL(att.blob);}catch(e){}}const live=items.filter(i=>urls[i.id]);if(!live.length){notify('This media is no longer available.',true);return;}let idx=live.indexOf(items[startIndex]);if(idx<0)idx=0;ui.viewer={items:live,urls,index:idx,playAll:false,loopAll:false,slideshow:!!opts?.slideshow,secret:!!opts?.secret,slideTimer:null};paintViewerItem();const d=el('mediaViewer');openDialog('mediaViewer');try{const req=d.requestFullscreen?d.requestFullscreen.bind(d):(d.webkitRequestFullscreen?d.webkitRequestFullscreen.bind(d):null);if(req){const p=req();if(p&&p.catch)p.catch(()=>{});}}catch(e){}}
+  function paintViewerItem(){const v=ui.viewer;if(!v)return;const ref=v.items[v.index],url=v.urls[ref.id];const img=el('viewerImg'),vid=el('viewerVideo');el('viewerCount').textContent=(v.index+1)+' of '+v.items.length;const pa=el('viewerPlayAll');if(pa)pa.textContent=v.playAll?'Stop':'Play all';const la=el('viewerLoopAll');if(la){la.textContent=v.loopAll?'↻ Loop all on':'↻ Loop all off';la.setAttribute('aria-pressed',v.loopAll?'true':'false');}const ss=el('viewerStopSlide');if(ss)ss.hidden=!v.slideshow;if(ref.type==='video'){img.hidden=true;img.removeAttribute('src');vid.hidden=false;vid.src=url;vid.loop=(v.playAll||v.slideshow)?false:!!ref.loop;const p=vid.play();if(p&&p.catch)p.catch(()=>{});}else{vid.pause();vid.hidden=true;vid.removeAttribute('src');try{vid.load();}catch(e){}img.hidden=false;img.src=url;}if(v.slideshow)scheduleSlide();}
   function viewerGoTo(i,auto){const v=ui.viewer;if(!v)return;if(!auto&&v.playAll)v.playAll=false;v.index=(i+v.items.length)%v.items.length;paintViewerItem();}
-  function viewerTogglePlayAll(){const v=ui.viewer;if(!v)return;if(v.playAll){v.playAll=false;paintViewerItem();return;}const vids=viewerVideos();if(!vids.length){notify('No videos in this note.',true);return;}v.playAll=true;v.index=v.items.indexOf(vids[0]);paintViewerItem();}
+  function viewerTogglePlayAll(){const v=ui.viewer;if(!v)return;if(v.slideshow)stopSlideshow();if(v.playAll){v.playAll=false;paintViewerItem();return;}const vids=viewerVideos();if(!vids.length){notify('No videos in this note.',true);return;}v.playAll=true;v.index=v.items.indexOf(vids[0]);paintViewerItem();}
   function viewerToggleLoopAll(){const v=ui.viewer;if(!v)return;v.loopAll=!v.loopAll;paintViewerItem();}
-  function viewerOnEnded(){const v=ui.viewer;if(!v||!v.playAll)return;const next=viewerNextVideoIndex();if(next<0){v.playAll=false;paintViewerItem();return;}v.index=next;paintViewerItem();}
+  function viewerOnEnded(){const v=ui.viewer;if(!v)return;if(v.slideshow){viewerSlideNext();return;}if(!v.playAll)return;const next=viewerNextVideoIndex();if(next<0){v.playAll=false;paintViewerItem();return;}v.index=next;paintViewerItem();}
+  function scheduleSlide(){const v=ui.viewer;if(!v)return;if(v.slideTimer)clearTimeout(v.slideTimer);v.slideTimer=null;if(!v.slideshow)return;const ref=v.items[v.index];if(ref.type!=='video')v.slideTimer=setTimeout(viewerSlideNext,10000);}
+  function viewerSlideNext(){const v=ui.viewer;if(!v||!v.slideshow)return;if(v.index+1<v.items.length){v.index++;paintViewerItem();}else stopSlideshow();}
+  function stopSlideshow(){const v=ui.viewer;if(!v||!v.slideshow)return;v.slideshow=false;if(v.slideTimer)clearTimeout(v.slideTimer);v.slideTimer=null;paintViewerItem();}
   function closeMediaViewer(){const d=el('mediaViewer');if(d&&d.open)d.close();cleanupViewer();}
-  function cleanupViewer(){const v=ui.viewer;if(!v)return;const vid=el('viewerVideo');if(vid){vid.pause();vid.removeAttribute('src');}Object.values(v.urls).forEach(u=>URL.revokeObjectURL(u));if(document.fullscreenElement===el('mediaViewer')&&document.exitFullscreen){const p=document.exitFullscreen();if(p&&p.catch)p.catch(()=>{});}ui.viewer=null;}
+  function cleanupViewer(){const v=ui.viewer;if(!v)return;const vid=el('viewerVideo');if(vid){vid.pause();vid.removeAttribute('src');}Object.values(v.urls).forEach(u=>URL.revokeObjectURL(u));if(v.slideTimer)clearTimeout(v.slideTimer);if(document.fullscreenElement===el('mediaViewer')&&document.exitFullscreen){const p=document.exitFullscreen();if(p&&p.catch)p.catch(()=>{});}ui.viewer=null;}
   function addMedia(kind,input){const files=[...input.files];input.value='';if(!ui.editMedia||ui.editMedia.kind!==kind)return;files.forEach(file=>{if(file.size>200*1024*1024){notify(`"${file.name}" is too large to store on this device.`,true);return;}const type=file.type.startsWith('video/')?'video':'image';const id=uuid();mediaPut({id,ownerKind:kind,ownerId:ui.editMedia.ownerId,type,name:file.name.slice(0,120),blob:file,createdAt:new Date().toISOString()}).then(()=>{ui.editMedia.items.push({id,type});paintEditorMedia();}).catch(()=>notify('Could not save that file on this device.',true));});}
   function recordDelete(kind,items){if(!items||!items.length)return;ui.undo={kind,items:JSON.parse(JSON.stringify(items))};showUndoToast(`Deleted ${items.length} ${kind}${items.length===1?'':'s'}.`);}
   function showUndoToast(message){const node=el('toast');if(!node)return;node.innerHTML=`<span>${escapeHtml(message)}</span> <button class="btn btn-primary" data-action="undo-delete">Undo</button>`;node.classList.remove('error');node.classList.add('has-action');node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>{node.classList.remove('visible');node.classList.remove('has-action');ui.undo=null;},8000);}
@@ -383,11 +391,76 @@
   function renderSecret(){
     const f=data.noteFolders.find(x=>x.id==='secret');
     if(!f||folderLocked(f))return head('Secret folder.','Locked — unlock to enter.',`<button class="btn btn-primary" data-action="unlock-folder" data-id="secret">Unlock</button><button class="btn" data-action="secret-exit">Exit</button>`)+`<div class="locked-panel"><span class="note-lock-icon">🔒</span><h3>This folder is locked</h3><p>Unlock it to see these notes.</p></div>`;
+    const tabs=`<div class="workout-tabs"><button class="workout-tab-btn ${ui.secretTab==='notes'?'active':''}" data-action="secret-tab" data-tab="notes">Notes</button><button class="workout-tab-btn ${ui.secretTab==='gallery'?'active':''}" data-action="secret-tab" data-tab="gallery">Gallery</button></div>`;
+    const sub=ui.secretTab==='gallery'?'Only these pictures are here. Exit to return to the rest of Dayloom.':'Only these notes are here. Exit to return to the rest of Dayloom.';
+    return head('Secret folder.',sub,`<button class="btn" data-action="secret-exit">Exit</button>${ui.secretTab==='notes'?`<button class="btn btn-primary" data-action="secret-new-note">${icon('plus')} New note</button>`:''}`)+tabs+(ui.secretTab==='gallery'?renderSecretGallery():renderSecretNotes());
+  }
+  function renderSecretNotes(){
     const arr=data.notes.filter(n=>n.folderId==='secret'&&!noteLocked(n)).sort((a,b)=>Number(b.pinned)-Number(a.pinned)||b.updatedAt.localeCompare(a.updatedAt));
     const lockedNotes=data.notes.filter(n=>n.folderId==='secret'&&noteLocked(n));
-    return head('Secret folder.','Only these notes are here. Exit to return to the rest of Dayloom.',`<button class="btn" data-action="secret-exit">Exit</button><button class="btn btn-primary" data-action="secret-new-note">${icon('plus')} New note</button>`)+
-      (arr.length?`<div class="notes-grid">${arr.map(noteCard).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">${icon('sparkle')}</div><h3>No secret notes yet</h3><p>Create one — it stays in here.</p><button class="btn btn-primary" data-action="secret-new-note">${icon('plus')} New note</button></div>`)+
+    return (arr.length?`<div class="notes-grid">${arr.map(noteCard).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">${icon('sparkle')}</div><h3>No secret notes yet</h3><p>Create one — it stays in here.</p><button class="btn btn-primary" data-action="secret-new-note">${icon('plus')} New note</button></div>`)+
       (lockedNotes.length?`<div class="section-title"><h2>Locked notes</h2></div><div class="notes-grid">${lockedNotes.map(noteCard).join('')}</div>`:'');
+  }
+  function secretGalleryMedia(){const seen=new Set(),out=[];const notes=data.notes.filter(n=>n.folderId==='secret'&&!noteLocked(n)).sort((a,b)=>Number(b.pinned)-Number(a.pinned)||b.updatedAt.localeCompare(a.updatedAt));for(const n of notes){for(const a of n.attachments||[]){if(!seen.has(a.id)){seen.add(a.id);out.push(a);}}}return out;}
+  function albumLiveMedia(album){const byId=new Map(secretGalleryMedia().map(a=>[a.id,a]));return (album.mediaIds||[]).map(id=>byId.get(id)).filter(Boolean);}
+  function renderSecretGallery(){
+    if(ui.secretAlbum){
+      const album=(data.secretAlbums||[]).find(a=>a.id===ui.secretAlbum);
+      if(!album){ui.secretAlbum=null;return renderSecretGallery();}
+      const live=albumLiveMedia(album);
+      return `<div class="album-detail-head"><button class="btn" data-action="secret-album-back">← Albums</button><h2>${escapeHtml(album.name)}</h2><span>${live.length} item${live.length===1?'':'s'}</span></div><div class="album-actions"><button class="btn btn-primary" data-action="album-slideshow" data-id="${album.id}">▶ Slideshow</button><button class="btn" data-action="secret-album-edit" data-id="${album.id}">Add pictures</button><button class="btn btn-danger-soft" data-action="secret-album-delete" data-id="${album.id}">Delete album</button></div><div class="gallery-grid" id="secretAlbumGrid"></div>`;
+    }
+    const albums=data.secretAlbums||[];
+    return `<div class="section-title"><h2>Albums</h2><button class="btn btn-primary" data-action="secret-album-new">+ New album</button></div>`+
+      (albums.length?`<div class="album-grid">${albums.map(a=>{const live=albumLiveMedia(a);return `<div class="album-card" data-action="secret-album-open" data-id="${a.id}"><div class="album-cover" data-album="${a.id}"><span class="album-cover-empty">🖼️</span></div><div class="album-name">${escapeHtml(a.name)}</div><div class="album-count">${live.length} item${live.length===1?'':'s'}</div></div>`;}).join('')}</div>`:`<p class="form-tip">No albums yet — make one from your secret pictures.</p>`)+
+      `<div class="section-title"><h2>All pictures &amp; videos</h2></div><div class="gallery-grid" id="secretGalleryGrid"></div>`;
+  }
+  async function paintSecretGallery(){
+    const media=secretGalleryMedia();
+    const oldUrls=ui.galleryURLs||[];ui.galleryURLs=[];
+    const urls={};
+    for(const ref of media){try{const att=await mediaGet(ref.id);if(att&&att.blob){urls[ref.id]=URL.createObjectURL(att.blob);ui.galleryURLs.push(urls[ref.id]);}}catch(e){}}
+    const tile=(ref,i,action)=>{const url=urls[ref.id];if(!url)return '';return ref.type==='video'?`<div class="gallery-tile" data-action="${action}" data-index="${i}"><video src="${url}" preload="metadata" muted playsinline></video><span class="gallery-badge">▶</span></div>`:`<div class="gallery-tile" data-action="${action}" data-index="${i}"><img src="${url}" alt=""></div>`;};
+    const grid=el('secretGalleryGrid');
+    if(grid)grid.innerHTML=media.map((ref,i)=>tile(ref,i,'secret-gallery-open')).join('')||'<p class="form-tip">No pictures or videos in secret notes yet — attach one to a secret note and it shows up here.</p>';
+    const albumGrid=el('secretAlbumGrid');
+    if(albumGrid){const album=(data.secretAlbums||[]).find(a=>a.id===ui.secretAlbum);const live=album?albumLiveMedia(album):[];albumGrid.innerHTML=live.map((ref,i)=>tile(ref,i,'album-item-open')).join('')||'<p class="form-tip">This album is empty — add pictures to it.</p>';}
+    document.querySelectorAll('.album-cover[data-album]').forEach(cover=>{const album=(data.secretAlbums||[]).find(a=>a.id===cover.dataset.album);const live=album?albumLiveMedia(album):[];const first=live[0];const url=first?urls[first.id]:null;if(first&&url)cover.innerHTML=first.type==='video'?`<video src="${url}" preload="metadata" muted playsinline></video>`:`<img src="${url}" alt="">`;});
+    oldUrls.forEach(u=>URL.revokeObjectURL(u));
+  }
+  function openAlbumDialog(albumId){
+    const album=albumId?(data.secretAlbums||[]).find(a=>a.id===albumId):null;
+    ui.albumEditId=album?album.id:null;
+    const available=new Set(secretGalleryMedia().map(a=>a.id));
+    ui.albumPick=new Set(album?album.mediaIds.filter(id=>available.has(id)):[]);
+    el('albumDialogTitle').textContent=album?'Edit album':'New album';
+    el('albumName').value=album?album.name:'';
+    openDialog('albumDialog');
+    paintAlbumPicker();
+  }
+  async function paintAlbumPicker(){
+    const grid=el('albumPickGrid');if(!grid)return;
+    const media=secretGalleryMedia();
+    const oldUrls=ui.pickerURLs||[];ui.pickerURLs=[];
+    const urls={};
+    for(const ref of media){try{const att=await mediaGet(ref.id);if(att&&att.blob){urls[ref.id]=URL.createObjectURL(att.blob);ui.pickerURLs.push(urls[ref.id]);}}catch(e){}}
+    grid.innerHTML=media.map(ref=>{const url=urls[ref.id];if(!url)return '';const picked=ui.albumPick.has(ref.id);return `<div class="gallery-tile picker-tile ${picked?'selected':''}" data-action="album-pick-toggle" data-id="${ref.id}"><span class="picker-check">${picked?'✓':''}</span>${ref.type==='video'?`<video src="${url}" preload="metadata" muted playsinline></video>`:`<img src="${url}" alt="">`}</div>`;}).join('')||'<p class="form-tip">No secret pictures yet — attach one to a secret note first.</p>';
+    oldUrls.forEach(u=>URL.revokeObjectURL(u));
+  }
+  function saveAlbum(){
+    const name=el('albumName').value.trim().slice(0,100);
+    if(!name){notify('Name the album first.',true);return;}
+    const mediaIds=[...ui.albumPick];
+    if(ui.albumEditId){const a=(data.secretAlbums||[]).find(x=>x.id===ui.albumEditId);if(a){a.name=name;a.mediaIds=mediaIds;}}
+    else{(data.secretAlbums=data.secretAlbums||[]).push({id:uuid(),name,mediaIds});}
+    ui.albumEditId=null;ui.albumPick=new Set();
+    if(!persist())return;closeDialog('albumDialog');render();notify('Album saved.');
+  }
+  function deleteAlbum(id){
+    if(!confirm('Delete this album? Your pictures stay safe in their notes.'))return;
+    data.secretAlbums=(data.secretAlbums||[]).filter(a=>a.id!==id);
+    if(ui.secretAlbum===id)ui.secretAlbum=null;
+    if(!persist())return;render();notify('Album deleted. Your pictures are untouched.');
   }
   function renderNotes(){
     return head('Capture the little things.','Your notes, organized your way.',`<div class="note-head-actions">${(ui.unlockedNotes.size||ui.unlockedFolders.size)?`<button class="btn" data-action="lock-all">🔒 Lock all</button>`:''}<button class="btn" data-action="new-folder">${icon('plus')} Folder</button><button class="btn btn-primary" data-action="new-note">${icon('plus')} New note</button></div>`)+
@@ -656,6 +729,7 @@
     m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='workouts'?renderWorkouts():ui.view==='tasks'?renderTasks():ui.view==='lists'?renderLists():ui.view==='notes'?renderNotes():ui.view==='secret'?renderSecret():ui.view==='converter'?renderConverter():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
     if(ui.view==='workouts')paintTimerDisplay();
     if(ui.view==='notes')updateNoteResults();
+    if(ui.view==='secret'&&ui.secretTab==='gallery')paintSecretGallery();
     if(ui.view==='calendar')updateEventSearchResults();
     if(ui.view==='tasks'){el('statusFilter').value=ui.taskStatus;el('listFilter').value=ui.taskList;el('priorityFilter').value=ui.taskPriority;updateTaskResults();}
     paintSelectionBar();
@@ -664,13 +738,15 @@
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
   function closeAllDialogs(){document.querySelectorAll('dialog[open]').forEach(d=>{if(typeof d.close==='function')d.close();else d.removeAttribute('open');});}
   function onVisibilityChange(){
-    if(document.hidden){ui.relockedOnHide=ui.unlockedNotes.size>0||ui.unlockedFolders.size>0;ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(ui.noteFolder==='secret')ui.noteFolder='all';if(ui.view==='secret')ui.view='notes';if(data.settings.appLock){ui.appUnlocked=false;showAppLock();}return;}
+    if(document.hidden){ui.relockedOnHide=ui.unlockedNotes.size>0||ui.unlockedFolders.size>0;ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(ui.noteFolder==='secret')ui.noteFolder='all';if(ui.view==='secret')ui.view='notes';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();if(data.settings.appLock){ui.appUnlocked=false;showAppLock();}return;}
     if(data.settings.appLock&&!ui.appUnlocked){ui.relockedOnHide=false;closeAllDialogs();showAppLock();return;}
     if(ui.relockedOnHide){ui.relockedOnHide=false;render();}
     const nd=el('noteDialog');
     if(nd&&nd.open){const n=data.notes.find(x=>x.id===el('noteId').value);if(n&&noteHidden(n)){closeDialog('noteDialog');openUnlock(noteLocked(n)?'note':'folder',noteLocked(n)?n.id:n.folderId);return;}}
     const fd=el('folderDialog');
     if(fd&&fd.open){const f=data.noteFolders.find(x=>x.id===el('folderId').value);if(f&&folderLocked(f)){closeDialog('folderDialog');openUnlock('folder',f.id);return;}}
+    if(el('albumDialog')&&el('albumDialog').open)closeDialog('albumDialog');
+    if(el('mediaViewer')&&el('mediaViewer').open&&ui.viewer){let editedHidden=false;if(ui.editMedia&&ui.editMedia.kind==='note'){const n=data.notes.find(x=>x.id===ui.editMedia.ownerId);editedHidden=!!n&&noteHidden(n);}if(ui.viewer.secret||editedHidden)closeMediaViewer();}
     if(el('globalSearchDialog')&&el('globalSearchDialog').open)updateGlobalSearch();
   }
   function showAppLock(){const s=el('appLockScreen');const m=el('mainContent');if(m)m.innerHTML='';if(!s)return;s.hidden=false;const err=el('appLockError');if(err){err.hidden=true;err.textContent='';}const inp=el('appLockInput');if(inp){inp.value='';setTimeout(()=>inp.focus(),25);}}
@@ -868,7 +944,7 @@
     a.href=url;a.download=`dayloom-backup-${todayKey()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);notify(contents.media.length?`Backup downloaded with ${contents.media.length} photos/videos. Keep it somewhere safe.`:'Backup downloaded. Keep it somewhere safe.');
   }
   async function exportProtected(e){e.preventDefault();const pw=el('exportPw').value,pw2=el('exportPw2').value,err=el('exportError');const bad=m=>{if(err){err.hidden=false;err.textContent=m;}};if(!pw)return bad('Choose a password for a protected backup, or use Download plain.');if(pw!==pw2)return bad('Passwords do not match.');let envelope;try{const contents=await buildBackupContents();envelope=await encryptBackup(JSON.stringify(contents),pw);}catch(ex){return bad(ex&&ex.message==='secure'?'Password protection needs a secure (HTTPS) page.':'Could not protect this backup.');}const blob=new Blob([JSON.stringify(envelope,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`dayloom-backup-${todayKey()}.protected.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);closeDialog('exportDialog');notify('Protected backup downloaded. Keep its password safe — without it, the backup cannot be opened.');}
-  function beginImport(backup){const parsed=parseData(backup.data);ui.pendingImport=parsed;const rawMedia=Array.isArray(backup.media)?backup.media.slice(0,1000):[];const media=[];for(const m of rawMedia){if(!m||!validId(m.id)||!['task','event','note'].includes(m.ownerKind)||!validId(m.ownerId)||!['image','video'].includes(m.type)||typeof m.data!=='string'||!m.data)continue;media.push({id:m.id,ownerKind:m.ownerKind,ownerId:m.ownerId,type:m.type,name:typeof m.name==='string'?m.name.slice(0,120):'',mime:typeof m.mime==='string'?m.mime.slice(0,100):'',data:m.data});}ui.pendingMedia=media;el('importSummary').textContent=`Backup contains ${parsed.tasks.length} tasks, ${parsed.events.length} events, ${parsed.notes.length} notes, ${parsed.noteFolders.length} note folders and ${parsed.lists.length} lists${media.length?` and ${media.length} photos/videos`:''}. Choose how to restore it.`;document.querySelector('input[name="importMode"][value="merge"]').checked=true;openDialog('importDialog');}
+  function beginImport(backup){const parsed=parseData(backup.data);ui.pendingImport=parsed;const rawMedia=Array.isArray(backup.media)?backup.media.slice(0,1000):[];const media=[];for(const m of rawMedia){if(!m||!validId(m.id)||!['task','event','note'].includes(m.ownerKind)||!validId(m.ownerId)||!['image','video'].includes(m.type)||typeof m.data!=='string'||!m.data)continue;media.push({id:m.id,ownerKind:m.ownerKind,ownerId:m.ownerId,type:m.type,name:typeof m.name==='string'?m.name.slice(0,120):'',mime:typeof m.mime==='string'?m.mime.slice(0,100):'',data:m.data});}ui.pendingMedia=media;el('importSummary').textContent=`Backup contains ${parsed.tasks.length} tasks, ${parsed.events.length} events, ${parsed.notes.length} notes, ${parsed.noteFolders.length} note folders and ${parsed.lists.length} lists and ${parsed.secretAlbums.length} albums${media.length?` and ${media.length} photos/videos`:''}. Choose how to restore it.`;document.querySelector('input[name="importMode"][value="merge"]').checked=true;openDialog('importDialog');}
   async function importSelected(file){if(!file)return;if(file.size>500_000_000){notify('Backup too large (500 MB maximum).',true);return;}
     try{const backup=JSON.parse(await file.text());if(backup.format==='dayloom-backup-encrypted'){ui.pendingEncrypted=backup;const pw=el('importBackupPw'),err=el('importBackupError');if(pw)pw.value='';if(err)err.hidden=true;openDialog('importPasswordDialog');return;}if(backup.format!=='dayloom-backup'||![1,2,3,4].includes(backup.version))throw new Error('Choose a Dayloom JSON backup (version 1, 2, 3 or 4).');beginImport(backup);
     }catch(e){notify(e.message||'Unable to read the backup.',true);}finally{el('importFile').value='';}
@@ -881,8 +957,9 @@
       const tasks=new Map(data.tasks.map(t=>[t.id,t]));for(const t of ui.pendingImport.tasks){const old=tasks.get(t.id);if(!old||t.updatedAt>old.updatedAt)tasks.set(t.id,t);}
       const events=new Map(data.events.map(e=>[e.id,e]));for(const e of ui.pendingImport.events){const old=events.get(e.id);if(!old||e.updatedAt>old.updatedAt)events.set(e.id,e);}
       const folderMap=new Map(data.noteFolders.map(f=>[f.id,f]));for(const f of ui.pendingImport.noteFolders)if(!folderMap.has(f.id))folderMap.set(f.id,f);
+      const albumMap=new Map((data.secretAlbums||[]).map(a=>[a.id,a]));for(const a of ui.pendingImport.secretAlbums||[])if(!albumMap.has(a.id))albumMap.set(a.id,a);
       const noteMap=new Map(data.notes.map(n=>[n.id,n]));for(const n of ui.pendingImport.notes){const old=noteMap.get(n.id);if(!old||n.updatedAt>old.updatedAt)noteMap.set(n.id,n);}
-      data={...data,lists:[...lists.values()],tasks:[...tasks.values()].map(t=>({...t,listId:lists.has(t.listId)?t.listId:'inbox'})),events:[...events.values()],notes:[...noteMap.values()].map(n=>({...n,folderId:folderMap.has(n.folderId)?n.folderId:''})),noteFolders:[...folderMap.values()]};
+      data={...data,lists:[...lists.values()],tasks:[...tasks.values()].map(t=>({...t,listId:lists.has(t.listId)?t.listId:'inbox'})),events:[...events.values()],notes:[...noteMap.values()].map(n=>({...n,folderId:folderMap.has(n.folderId)?n.folderId:''})),noteFolders:[...folderMap.values()],secretAlbums:[...albumMap.values()]};
     }
     const restored=await importBackupMedia(ui.pendingMedia||[]);
     ui.pendingImport=null;ui.pendingMedia=null;persist();closeDialog('importDialog');render();notify(restored?`Backup imported successfully — ${restored} photos/videos restored.`:'Backup imported successfully');
@@ -893,6 +970,18 @@
     else if(a==='nav-menu')openNavMenu();
     else if(a==='secret-tap')secretTap();
     else if(a==='secret-exit')exitSecret();
+    else if(a==='secret-tab'){ui.secretTab=button.dataset.tab==='gallery'?'gallery':'notes';ui.secretAlbum=null;render();}
+    else if(a==='secret-album-open'){ui.secretAlbum=id;render();}
+    else if(a==='secret-album-back'){ui.secretAlbum=null;render();}
+    else if(a==='secret-album-new')openAlbumDialog(null);
+    else if(a==='secret-album-edit')openAlbumDialog(id);
+    else if(a==='album-save')saveAlbum();
+    else if(a==='secret-album-delete')deleteAlbum(id);
+    else if(a==='album-slideshow'){const album=(data.secretAlbums||[]).find(x=>x.id===id);const live=album?albumLiveMedia(album):[];if(!live.length){notify('No pictures in this album yet.',true);return;}openMediaViewer(0,live,{slideshow:true,secret:true});}
+    else if(a==='secret-gallery-open'){const media=secretGalleryMedia();const i=parseInt(button.dataset.index||'0',10);if(media[i])openMediaViewer(i,media,{secret:true});}
+    else if(a==='album-item-open'){const album=(data.secretAlbums||[]).find(x=>x.id===ui.secretAlbum);const live=album?albumLiveMedia(album):[];const i=parseInt(button.dataset.index||'0',10);if(live[i])openMediaViewer(i,live,{secret:true});}
+    else if(a==='album-pick-toggle'){if(ui.albumPick.has(id)){ui.albumPick.delete(id);button.classList.remove('selected');}else{ui.albumPick.add(id);button.classList.add('selected');}const chk=button.querySelector('.picker-check');if(chk)chk.textContent=ui.albumPick.has(id)?'✓':'';}
+    else if(a==='viewer-stopslide')stopSlideshow();
     else if(a==='secret-new-note'){ui.noteFolder='secret';openNote();}
     else if(a==='new-task')openTask('',button.dataset.date||'',button.dataset.list||'');
     else if(a==='edit-task')openTask(id);

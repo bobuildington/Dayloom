@@ -222,10 +222,16 @@
       <div class="viewer-bar">
         <span class="viewer-count" id="viewerCount"></span>
         <button class="viewer-btn" type="button" data-action="viewer-playall" id="viewerPlayAll">Play all</button>
+        <button class="viewer-btn" type="button" data-action="viewer-stopslide" id="viewerStopSlide" hidden>Stop slideshow</button>
         <button class="viewer-btn" type="button" data-action="viewer-loopall" id="viewerLoopAll" aria-pressed="false">↻ Loop all off</button>
         <button class="viewer-btn" type="button" data-action="viewer-close">Close</button>
       </div>
     </div>
+  </dialog>
+  <dialog id="albumDialog" class="modal" aria-labelledby="albumDialogTitle">
+    <div class="modal-header"><div><div class="eyebrow">SECRET GALLERY</div><h2 id="albumDialogTitle">New album</h2></div><button class="icon-button" type="button" data-close="albumDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body"><label class="field-label" for="albumName">Album name</label><input id="albumName" class="field" maxlength="100" placeholder="e.g. Summer"><div class="gallery-grid picker-grid" id="albumPickGrid"></div><p class="form-tip">Tap pictures to pick them for this album.</p></div>
+    <div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="albumDialog">Cancel</button><button class="btn btn-primary" data-action="album-save">Save album</button></div></div>
   </dialog>
   <dialog id="listDialog" class="modal list-modal" aria-labelledby="listDialogTitle">
     <form id="listForm" novalidate>
