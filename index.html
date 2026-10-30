@@ -60,7 +60,7 @@
         <div class="topbar-actions">
           <button class="icon-button" id="searchFocusBtn" aria-label="Search everything"><svg><use href="#i-search"/></svg></button>
           <button class="btn header-add header-event" id="headerAddEvent" hidden><svg><use href="#i-calendar"/></svg><span>New event</span></button>
-          <button class="btn btn-primary header-add" id="headerAddNote" hidden><svg><use href="#i-plus"/></svg><span>New note</span></button>
+          <button class="btn btn-primary header-add" id="headerAddNote" hidden><svg><use href="#i-plus"/></svg><span>Add</span></button>
           <button class="btn btn-primary header-add" id="headerAdd"><svg><use href="#i-plus"/></svg><span>New task</span></button>
         </div>
       </header>
@@ -180,20 +180,31 @@
     <form id="noteForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">YOUR NOTEBOOK</div><h2 id="noteDialogTitle">New note</h2></div><button class="icon-button" type="button" data-close="noteDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
       <div class="modal-body">
-        <input type="hidden" id="noteId">
+        <input type="hidden" id="noteId"><input type="hidden" id="noteIsList">
         <label class="field-label" for="noteTitle">Title <span class="required">*</span></label>
         <input id="noteTitle" class="field" maxlength="160" required placeholder="An idea worth keeping...">
-        <label class="field-label" for="noteFolder">Folder</label>
-        <select id="noteFolder" class="field"><option value="">Unfiled</option></select>
-        <label class="field-label" for="noteBody">Your note</label>
-        <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea><div class="editor-link-preview" id="noteLinkPreview" aria-label="Clickable note links" hidden></div><div class="video-preview" id="noteVideoPreview"></div>
+        <div id="noteFolderWrap"><label class="field-label" for="noteFolder">Folder</label>
+        <select id="noteFolder" class="field"><option value="">Unfiled</option></select></div>
+        <div id="noteBodyWrap"><label class="field-label" for="noteBody">Your note</label>
+        <textarea id="noteBody" class="field note-editor" maxlength="20000" rows="10" placeholder="Write anything you want to remember..."></textarea><div class="editor-link-preview" id="noteLinkPreview" aria-label="Clickable note links" hidden></div><div class="video-preview" id="noteVideoPreview"></div></div>
+        <div id="noteListWrap" hidden><label class="field-label">Items</label><div id="noteListItems"></div><div class="checklist-add"><input id="noteListAdd" class="field" maxlength="120" placeholder="Add an item..."><button type="button" class="btn" data-action="list-item-add">Add</button></div></div>
         <label class="event-check"><input id="notePinned" type="checkbox"><span>Pin to the top</span></label>
         <label class="field-label">Note color</label><div id="noteColorPalette" class="color-palette"></div>
         <label class="field-label">Photos & videos</label><div id="noteMedia" class="media-strip"></div><div><button type="button" class="btn" data-action="media-add" data-kind="note">Add photo or video</button></div><input type="file" id="noteMediaInput" accept="image/*,video/*" multiple hidden>
         <label class="field-label">Password lock (optional)</label><input id="noteLockPw" class="field" type="password" autocomplete="new-password" placeholder="Set a password to lock this note"><input id="noteLockPw2" class="field" type="password" autocomplete="new-password" placeholder="Confirm password"><label class="event-check" id="noteLockRemoveWrap" hidden><input id="noteLockRemove" type="checkbox"><span>Remove lock on save</span></label><p class="form-tip">A locked note shows no title, text, or photos until you unlock it. If you forget the password there is no way to reset it.</p>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="noteDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="noteDialog">Cancel</button><button class="btn btn-primary" type="submit">Save note</button></div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="noteDelete" hidden>Delete</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="noteDialog">Cancel</button><button class="btn btn-primary" id="noteSave" type="submit">Save note</button></div></div>
     </form>
+  </dialog>
+
+  <dialog id="noteTemplateDialog" class="modal list-modal" aria-labelledby="noteTemplateDialogTitle">
+    <div class="modal-header"><div><div class="eyebrow">YOUR NOTEBOOK</div><h2 id="noteTemplateDialogTitle">Add</h2></div><button class="icon-button" type="button" data-close="noteTemplateDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body">
+      <button type="button" class="btn btn-primary" data-action="new-note" style="width:100%">Note</button>
+      <p class="form-tip">A free-form note for anything you want to remember.</p>
+      <button type="button" class="btn btn-primary" data-action="new-list" style="width:100%">List</button>
+      <p class="form-tip">A checklist with tick boxes, kept in the Lists folder.</p>
+    </div>
   </dialog>
 
   <dialog id="folderDialog" class="modal list-modal" aria-labelledby="folderDialogTitle">

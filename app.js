@@ -47,7 +47,7 @@
   const parseLocalDate = value => { if(!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null; const [y,m,d]=value.split('-').map(Number); const result=new Date(y,m-1,d); return result.getFullYear()===y && result.getMonth()===m-1 && result.getDate()===d ? result : null; };
   const todayKey = () => localDate(new Date());
   const dateLabel = (value,opts={month:'short',day:'numeric'}) => { const d=parseLocalDate(value); return d ? d.toLocaleDateString(undefined,opts) : 'No date'; };
-  const defaultData = () => ({lists:[{id:'inbox',name:'Inbox',color:'#6457e8'},{id:'personal',name:'Personal',color:'#3ca99b'},{id:'work',name:'Work',color:'#e99d64'}],tasks:[],events:[],notes:[],noteFolders:[],secretAlbums:[],settings:{theme:'system',accent:'#6457e8',weekStart:0,compact:false,showCompleted:true,appLock:null}});
+  const defaultData = () => ({lists:[{id:'inbox',name:'Inbox',color:'#6457e8'},{id:'personal',name:'Personal',color:'#3ca99b'},{id:'work',name:'Work',color:'#e99d64'}],tasks:[],events:[],notes:[],noteFolders:[{id:'lists',name:'Lists',color:'#3ca99b',lockSalt:'',lockHash:''}],secretAlbums:[],settings:{theme:'system',accent:'#6457e8',weekStart:0,compact:false,showCompleted:true,appLock:null}});
   const safeString = (v,max=160) => typeof v === 'string' ? v.slice(0,max) : '';
   const validColor = v => /^#[0-9a-f]{6}$/i.test(v || '') ? v : '#6457e8';
   const validId = v => typeof v === 'string' && v.length > 0 && v.length < 120 && /^[a-zA-Z0-9_-]+$/.test(v);
@@ -115,6 +115,7 @@
       if(!item || !validId(item.id) || !safeString(item.name,60).trim()) continue;
       folderMap.set(item.id,{id:item.id,name:safeString(item.name,60),color:validColor(item.color),lockSalt:lockFields(item).salt,lockHash:lockFields(item).hash});
     }
+    if(!folderMap.has('lists'))folderMap.set('lists',{id:'lists',name:'Lists',color:'#3ca99b',lockSalt:'',lockHash:''});
     const albumMap=new Map();
     for(const item of raw.secretAlbums || []){
       if(!item || !validId(item.id) || !safeString(item.name,100).trim()) continue;
@@ -125,7 +126,7 @@
       if(!item || !validId(item.id) || !safeString(item.title,160).trim()) continue;
       noteMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),body:safeString(item.body,20000),
-        pinned:item.pinned===true,color:validColor(item.color),folderId:folderMap.has(item.folderId)?item.folderId:'',lockSalt:lockFields(item).salt,lockHash:lockFields(item).hash,
+        pinned:item.pinned===true,color:validColor(item.color),folderId:folderMap.has(item.folderId)?item.folderId:'',lockSalt:lockFields(item).salt,lockHash:lockFields(item).hash,isList:item.isList===true,checklist:Array.isArray(item.checklist)?item.checklist.filter(s=>s&&typeof s.id==='string'&&typeof s.text==='string').map(s=>({id:s.id.slice(0,120),text:s.text.slice(0,120),done:s.done===true})).slice(0,500):[],
         attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true})).slice(0,20):[],
         createdAt:typeof item.createdAt==='string'?item.createdAt:new Date().toISOString(),
         updatedAt:typeof item.updatedAt==='string'?item.updatedAt:new Date().toISOString()
@@ -142,7 +143,7 @@
   let storageIssue=false;
   try {const saved=localStorage.getItem(STORE_KEY); if(saved) data=parseData(JSON.parse(saved));}
   catch(e){storageIssue=true;console.warn('Dayloom storage unavailable or corrupt:',e);}
-  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,pendingEncrypted:null,converterFile:null,converterBatch:null,converterPreview:null,converterTxtAutoName:'',converterTxtFiles:null,relockedOnHide:false,escFromFullscreen:0,secretTaps:0,secretTapAt:0,selection:null,editChecklist:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null,deferredPrompt:null,offlineReady:null,viewer:null,secretTab:'notes',secretAlbum:null,albumPick:new Set(),albumEditId:null,galleryURLs:[],pickerURLs:[],expandedTasks:new Set()};
+  const ui={view:'today',selectedDate:todayKey(),month:new Date().getMonth(),year:new Date().getFullYear(),calendarMode:'month',eventSearch:'',noteSearch:'',selectedNoteColor:PALETTE[0],selectedFolderColor:PALETTE[0],noteFolder:'all',search:'',taskStatus:'open',taskPriority:'all',taskList:'all',selectedListColor:PALETTE[0],selectedEventColor:PALETTE[0],pendingImport:null,pendingMedia:null,pendingEncrypted:null,converterFile:null,converterBatch:null,converterPreview:null,converterTxtAutoName:'',converterTxtFiles:null,relockedOnHide:false,escFromFullscreen:0,secretTaps:0,secretTapAt:0,selection:null,editChecklist:[],editListItems:[],editMedia:null,mediaURLs:[],undo:null,editRepeatDays:[],workoutWeek:0,timer:null,timerTick:null,audioCtx:null,workoutTab:'sessions',player:null,unlockedNotes:new Set(),unlockedFolders:new Set(),appUnlocked:false,pendingUnlock:null,deferredPrompt:null,offlineReady:null,viewer:null,secretTab:'notes',secretAlbum:null,albumPick:new Set(),albumEditId:null,galleryURLs:[],pickerURLs:[],expandedTasks:new Set()};
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
@@ -378,10 +379,12 @@
     return head(escapeHtml(list.name),`${items.filter(t=>!t.completed&&!t.skipped).length} remaining · ${items.filter(t=>t.completed).length} completed`,`${id!=='inbox'?`<button class="btn" data-action="edit-list" data-id="${escapeHtml(id)}">${icon('edit')} Edit list</button>`:''}<button class="btn btn-primary" data-action="new-task" data-list="${escapeHtml(id)}">${icon('plus')} New task</button>`)+taskStack(items,'This list is ready','Add your first task here.','new-task');
   }
   function noteFolderName(folderId){return data.noteFolders.find(f=>f.id===folderId)?.name||'Unfiled';}
+  function ensureListsFolder(){if(!data.noteFolders.some(f=>f.id==='lists'))data.noteFolders.push({id:'lists',name:'Lists',color:'#3ca99b',lockSalt:'',lockHash:''});}
   function noteCard(n){
     if(noteLocked(n))return `<article class="note-card is-locked" style="--note-color:${n.color}"><button class="note-card-open" data-action="unlock-note" data-id="${escapeHtml(n.id)}" aria-label="Unlock note"><span class="note-lock-icon">🔒</span><strong>Locked note</strong><span class="note-preview">Unlock to view this note.</span></button></article>`;
-    const summary=n.body.trim().replace(/\s+/g,' ').slice(0,240);
     const folder=data.noteFolders.find(f=>f.id===n.folderId);
+    if(n.isList){const items=n.checklist||[];const done=items.filter(s=>s.done).length;return `<article class="note-card ${isSelected('note',n.id)?'is-selected':''}" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit list: ${escapeHtml(n.title)}"><span class="note-card-top">${ui.selection&&ui.selection.kind==='note'?`<span class="select-box ${isSelected('note',n.id)?'checked':''}">${isSelected('note',n.id)?'✓':''}</span>`: '' }<span class="note-pin">${n.pinned?'★ Pinned':'List'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${items.length?`${done}/${items.length} done`:'No items yet'}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Lists')}</span>${mediaCounts(n.attachments)?`<span class="note-media">${mediaCounts(n.attachments)}</span>`:''}</button><div class="subtask-list">${items.map(s=>`<button type="button" class="subtask ${s.done?'done':''}" data-action="toggle-list-item" data-id="${escapeHtml(n.id)}" data-sub="${escapeHtml(s.id)}"><span class="subtask-box">${s.done?'✓':''}</span><span class="subtask-text">${escapeHtml(s.text)}</span></button>`).join('')||'<span class="note-preview">No items yet</span>'}</div>${webLinks([n.title])}</article>`;}
+    const summary=n.body.trim().replace(/\s+/g,' ').slice(0,240);
     return `<article class="note-card ${isSelected('note',n.id)?'is-selected':''}" style="--note-color:${n.color}"><button class="note-card-open" data-action="edit-note" data-id="${escapeHtml(n.id)}" aria-label="Edit note: ${escapeHtml(n.title)}"><span class="note-card-top">${ui.selection&&ui.selection.kind==='note'?`<span class="select-box ${isSelected('note',n.id)?'checked':''}">${isSelected('note',n.id)?'✓':''}</span>`: '' }<span class="note-pin">${n.pinned?'★ Pinned':'Note'}</span><span>${dateLabel(localDate(new Date(n.updatedAt)))}</span></span><strong>${escapeHtml(n.title)}</strong><span class="note-preview">${escapeHtml(summary||'No text yet')}</span><span class="note-folder-pill"><i style="background:${folder?.color||'var(--muted)'}"></i>${escapeHtml(folder?.name||'Unfiled')}</span>${mediaCounts(n.attachments)?`<span class="note-media">${mediaCounts(n.attachments)}</span>`:''}</button>${webLinks([n.title,n.body])}</article>`;
   }
   function noteFolderControls(){
@@ -464,7 +467,7 @@
     if(!persist())return;render();notify('Album deleted. Your pictures are untouched.');
   }
   function renderNotes(){
-    return head('Capture the little things.','Your notes, organized your way.',`<div class="note-head-actions">${(ui.unlockedNotes.size||ui.unlockedFolders.size)?`<button class="btn" data-action="lock-all">🔒 Lock all</button>`:''}<button class="btn" data-action="new-folder">${icon('plus')} Folder</button><button class="btn btn-primary" data-action="new-note">${icon('plus')} New note</button></div>`)+
+    return head('Capture the little things.','Your notes, organized your way.',`<div class="note-head-actions">${(ui.unlockedNotes.size||ui.unlockedFolders.size)?`<button class="btn" data-action="lock-all">🔒 Lock all</button>`:''}<button class="btn" data-action="new-folder">${icon('plus')} Folder</button><button class="btn btn-primary" data-action="add-item">${icon('plus')} Add</button></div>`)+
       `<div class="toolbar"><div class="search-wrap">${icon('search')}<input type="search" id="noteSearch" placeholder="Search all notes and folders..." value="${escapeHtml(ui.noteSearch)}" aria-label="Search all notes and folders"></div></div><div class="notes-workspace">${noteFolderControls()}<section class="notes-content"><div class="notes-content-head"><h2 id="currentNoteFolder">Notes</h2><span id="noteSearchDescription"></span></div><div id="noteResults"></div></section></div>`;
   }
   function updateNoteResults(){
@@ -481,20 +484,26 @@
     output.innerHTML=arr.length?`<div class="notes-grid">${arr.map(noteCard).join('')}</div>`:empty(q?'No matching notes':'No notes here yet',q?'Try another search.':'Create a note to get started.','new-note');
   }
   function paintNoteColors(){el('noteColorPalette').innerHTML=PALETTE.map(c=>`<button class="swatch ${ui.selectedNoteColor===c?'selected':''}" type="button" style="background:${c}" data-action="note-color" data-value="${c}" aria-label="Choose ${c}" aria-pressed="${ui.selectedNoteColor===c}"></button>`).join('');}
-  function openNote(id=''){
+  const paintNoteListItems=()=>{const box=el('noteListItems');if(!box)return;box.innerHTML=(ui.editListItems||[]).map(s=>`<div class="checklist-edit-row" data-sub="${escapeHtml(s.id)}"><input class="field" maxlength="120" value="${escapeHtml(s.text)}" aria-label="List item"><button type="button" class="btn btn-subtle" data-action="list-item-remove" data-sub="${escapeHtml(s.id)}">Remove</button></div>`).join('')||'<p class="form-tip">No items yet — add one below.</p>';};
+  const readEditorListItems=()=>{const rows=[...document.querySelectorAll('#noteListItems .checklist-edit-row')];return rows.map(row=>{const input=row.querySelector('input');const text=input?input.value.trim():'';const orig=(ui.editListItems||[]).find(s=>s.id===row.dataset.sub);return {id:row.dataset.sub,text:text.slice(0,120),done:orig?orig.done:false};}).filter(s=>s.text);};
+  function openNote(id='',isList=false){
     const note=data.notes.find(n=>n.id===id);
     if(note&&noteHidden(note)){if(noteLocked(note))openUnlock('note',note.id);else openUnlock('folder',note.folderId);return;}
-    el('noteDialogTitle').textContent=note?'Edit note':'New note';el('noteId').value=note?.id||uuid();
+    const listMode=isList||note?.isList===true;
+    el('noteDialogTitle').textContent=note?(listMode?'Edit list':'Edit note'):(listMode?'New list':'New note');el('noteId').value=note?.id||uuid();el('noteIsList').value=listMode?'1':'';
     ui.editMedia={kind:'note',ownerId:el('noteId').value,original:(note?.attachments||[]).map(a=>({...a})),items:(note?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('noteTitle').value=note?.title||'';el('noteBody').value=note?.body||'';el('notePinned').checked=note?.pinned||false;
-    el('noteFolder').innerHTML=ui.view==='secret'?`<option value="secret">Secret</option>`:'<option value="">Unfiled</option>'+data.noteFolders.filter(f=>!folderLocked(f)).map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
+    el('noteFolder').innerHTML=ui.view==='secret'?`<option value="secret">Secret</option>`:'<option value="">Unfiled</option>'+data.noteFolders.filter(f=>!folderLocked(f)&&f.id!=='lists').map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
+    el('noteFolderWrap').hidden=listMode;el('noteBodyWrap').hidden=listMode;el('noteListWrap').hidden=!listMode;el('noteSave').textContent=listMode?'Save list':'Save note';
+    ui.editListItems=listMode?(note?.checklist||[]).map(s=>({...s})):[];paintNoteListItems();
     ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;el('noteLockPw').value='';el('noteLockPw2').value='';el('noteLockRemove').checked=false;el('noteLockRemoveWrap').hidden=!note?.lockHash;
     refreshWebLinks('noteBody','noteTitle','noteLinkPreview','noteVideoPreview');openDialog('noteDialog');focusOnOpen(!note,'noteTitle');
   }
   async function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
     const old=data.notes.find(n=>n.id===el('noteId').value),now=new Date().toISOString();
+    const isList=el('noteIsList').value==='1';
     const pw=el('noteLockPw').value,pw2=el('noteLockPw2').value;
     let lockSalt=old?.lockSalt||'',lockHash=old?.lockHash||'';
     if(el('noteLockRemove').checked){lockSalt='';lockHash='';}
@@ -505,11 +514,12 @@
     let folderId=data.noteFolders.some(f=>f.id===el('noteFolder').value)?el('noteFolder').value:'';
     if(folderId){const lf=data.noteFolders.find(f=>f.id===folderId);if(lf&&folderLocked(lf))folderId=old?.folderId||'';}
     if(old&&old.folderId==='secret')folderId='secret';
-    const note={id:el('noteId').value||old?.id||uuid(),title:title.slice(0,160),body:el('noteBody').value.slice(0,20000),pinned:el('notePinned').checked,color:ui.selectedNoteColor,folderId,lockSalt,lockHash,attachments:ui.editMedia&&ui.editMedia.ownerId===el('noteId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    if(isList){ensureListsFolder();folderId='lists';}
+    const note={id:el('noteId').value||old?.id||uuid(),title:title.slice(0,160),body:isList?'':el('noteBody').value.slice(0,20000),pinned:el('notePinned').checked,color:ui.selectedNoteColor,folderId,isList,checklist:isList?readEditorListItems():(old?.checklist||[]),lockSalt,lockHash,attachments:ui.editMedia&&ui.editMedia.ownerId===el('noteId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
     if(ui.editMedia&&ui.editMedia.ownerId===el('noteId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old)data.notes[data.notes.indexOf(old)]=note;else data.notes.push(note);
     if(!persist())return;
-    closeDialog('noteDialog');render();notify(old?'Note saved':'Note created');
+    closeDialog('noteDialog');render();notify(old?(isList?'List saved':'Note saved'):(isList?'List created':'Note created'));
   }
   function deleteNote(){const id=el('noteId').value;if(!id||!confirm('Delete this note? This cannot be undone.'))return;
     const item=data.notes.find(n=>n.id===id);recordDelete('note',item?[item]:[]);deleteMediaFor(item);
@@ -521,7 +531,7 @@
     if(folder&&folderLocked(folder)){openUnlock('folder',folder.id);return;}
     el('folderDialogTitle').textContent=folder?'Edit folder':'New folder';el('folderId').value=folder?.id||'';
     el('folderName').value=folder?.name||'';ui.selectedFolderColor=folder?.color||data.settings.accent;
-    el('folderDelete').hidden=!folder;paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=!folder?.lockHash;openDialog('folderDialog');focusOnOpen(!folder,'folderName');
+    el('folderDelete').hidden=!folder||folder.id==='lists';paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=!folder?.lockHash;openDialog('folderDialog');focusOnOpen(!folder,'folderName');
   }
   async function saveFolder(e){
     e.preventDefault();const name=el('folderName').value.trim().slice(0,60);if(!name){el('folderName').reportValidity();return;}
@@ -540,6 +550,7 @@
   }
   function deleteFolder(){
     const id=el('folderId').value,folder=data.noteFolders.find(f=>f.id===id);if(!folder)return;
+    if(folder.id==='lists'){notify('The Lists folder can\'t be deleted.',true);return;}
     if(folderLocked(folder)){notify('Unlock this folder first.',true);return;}
     const count=data.notes.filter(n=>n.folderId===id).length;
     if(!confirm(`Delete "${folder.name}"? ${count?`${count} note${count===1?'':'s'} will move to Unfiled.`:'Your notes will not be deleted.'}`))return;
@@ -606,11 +617,11 @@
   };
   const selectionCount=()=>ui.selection?ui.selection.ids.length:0;
   const isSelected=(kind,id)=>!!ui.selection&&ui.selection.kind===kind&&ui.selection.ids.includes(id);
-  const paintSelectionBar=()=>{const bar=el('selectionBar');if(!bar)return;if(!ui.selection){bar.hidden=true;bar.innerHTML='';return;}const n=selectionCount(),kind=ui.selection.kind;const label=kind==='task'?'task':kind==='event'?'event':'note';const moveControl=kind==='task'?`<select id="selectionMoveTarget" aria-label="Move to list">${data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:kind==='note'?(ui.view==='secret'?'':`<select id="selectionMoveTarget" aria-label="Move to folder"><option value="">Unfiled</option>${data.noteFolders.filter(f=>!folderLocked(f)).map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`):'';bar.innerHTML=`<strong>${n} selected</strong>${moveControl}<button class="btn btn-danger-soft" data-action="selection-delete">Delete</button><button class="btn" data-action="selection-cancel">Cancel</button>`;bar.hidden=false;};
+  const paintSelectionBar=()=>{const bar=el('selectionBar');if(!bar)return;if(!ui.selection){bar.hidden=true;bar.innerHTML='';return;}const n=selectionCount(),kind=ui.selection.kind;const label=kind==='task'?'task':kind==='event'?'event':'note';const moveControl=kind==='task'?`<select id="selectionMoveTarget" aria-label="Move to list">${data.lists.map(l=>`<option value="${escapeHtml(l.id)}">${escapeHtml(l.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`:kind==='note'?(ui.view==='secret'?'':`<select id="selectionMoveTarget" aria-label="Move to folder"><option value="">Unfiled</option>${data.noteFolders.filter(f=>!folderLocked(f)&&f.id!=='lists').map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('')}</select><button class="btn btn-primary" data-action="selection-move">Move</button>`):'';bar.innerHTML=`<strong>${n} selected</strong>${moveControl}<button class="btn btn-danger-soft" data-action="selection-delete">Delete</button><button class="btn" data-action="selection-cancel">Cancel</button>`;bar.hidden=false;};
   const startSelection=(kind,id)=>{ui.selection={kind,ids:[id]};render();};
   const toggleSelection=(kind,id)=>{if(!ui.selection||ui.selection.kind!==kind){startSelection(kind,id);return;}const at=ui.selection.ids.indexOf(id);if(at>=0)ui.selection.ids.splice(at,1);else ui.selection.ids.push(id);if(!ui.selection.ids.length)ui.selection=null;render();};
   function bulkDelete(){if(!ui.selection)return;const n=selectionCount(),kind=ui.selection.kind,ids=new Set(ui.selection.ids);const label=kind==='task'?'task':kind==='event'?'event':'note';const srcArr=kind==='task'?data.tasks:kind==='event'?data.events:data.notes;const items=srcArr.filter(x=>ids.has(x.id));if(!confirm(`Delete ${n} ${label}${n===1?'':'s'}? This cannot be undone.`))return;recordDelete(kind,items);items.forEach(deleteMediaFor);if(kind==='task')data.tasks=data.tasks.filter(t=>!ids.has(t.id));else if(kind==='event')data.events=data.events.filter(ev=>!ids.has(ev.id));else data.notes=data.notes.filter(no=>!ids.has(no.id));ui.selection=null;persist();render();}
-  function bulkMove(){if(!ui.selection)return;const destEl=el('selectionMoveTarget');if(!destEl)return;const dest=destEl.value,n=selectionCount(),ids=new Set(ui.selection.ids);if(ui.selection.kind==='task'){data.tasks.forEach(t=>{if(ids.has(t.id))t.listId=dest;});const name=(data.lists.find(l=>l.id===dest)||{}).name||'that list';ui.selection=null;persist();render();notify(`Moved ${n} task${n===1?'':'s'} to ${name}.`);}else if(ui.selection.kind==='note'){if(data.notes.some(no=>ids.has(no.id)&&no.folderId==='secret')&&dest!=='secret'){notify('Secret notes stay in the secret folder.',true);return;}if(dest){const df=data.noteFolders.find(f=>f.id===dest);if(df&&folderLocked(df)){notify('Unlock that folder first.',true);return;}}data.notes.forEach(no=>{if(ids.has(no.id))no.folderId=dest;});const name=dest?noteFolderName(dest):'Unfiled';ui.selection=null;persist();render();notify(`Moved ${n} note${n===1?'':'s'} to ${name}.`);}}
+  function bulkMove(){if(!ui.selection)return;const destEl=el('selectionMoveTarget');if(!destEl)return;const dest=destEl.value,n=selectionCount(),ids=new Set(ui.selection.ids);if(ui.selection.kind==='task'){data.tasks.forEach(t=>{if(ids.has(t.id))t.listId=dest;});const name=(data.lists.find(l=>l.id===dest)||{}).name||'that list';ui.selection=null;persist();render();notify(`Moved ${n} task${n===1?'':'s'} to ${name}.`);}else if(ui.selection.kind==='note'){if(data.notes.some(no=>ids.has(no.id)&&no.folderId==='secret')&&dest!=='secret'){notify('Secret notes stay in the secret folder.',true);return;}const selectedNotes=data.notes.filter(no=>ids.has(no.id));if(selectedNotes.some(no=>no.isList)&&dest!=='lists'){notify('Lists stay in the Lists folder.',true);return;}if(dest==='lists'&&selectedNotes.some(no=>!no.isList)){notify('Only lists go in the Lists folder.',true);return;}if(dest){const df=data.noteFolders.find(f=>f.id===dest);if(df&&folderLocked(df)){notify('Unlock that folder first.',true);return;}}data.notes.forEach(no=>{if(ids.has(no.id))no.folderId=dest;});const name=dest?noteFolderName(dest):'Unfiled';ui.selection=null;persist();render();notify(`Moved ${n} note${n===1?'':'s'} to ${name}.`);}}
   function buildTimerPhases(preset){
     if(preset==='rest')return [{label:'Rest',secs:60}];
     if(preset==='plank')return [{label:'Plank',secs:40}];
@@ -994,7 +1005,9 @@
     else if(a==='new-task')openTask('',button.dataset.date||'',button.dataset.list||'');
     else if(a==='edit-task')openTask(id);
     else if(a==='new-event')openEvent('',button.dataset.date||todayKey());
-    else if(a==='new-note')openNote();
+    else if(a==='new-note'){closeDialog('noteTemplateDialog');openNote();}
+    else if(a==='add-item')openDialog('noteTemplateDialog');
+    else if(a==='new-list'){closeDialog('noteTemplateDialog');openNote('',true);}
     else if(a==='new-folder')openFolder();
     else if(a==='edit-folder')openFolder(id);
     else if(a==='note-filter'){ui.noteFolder=button.dataset.folder;render();}
@@ -1048,6 +1061,9 @@
     else if(a==='unskip-task')unskipTask(id);
     else if(a==='missed-clear-all')clearAllMissed();
     else if(a==='checklist-add'){const input=el('checklistAdd');const text=input?input.value.trim():'';if(!text)return;ui.editChecklist.push({id:uuid(),text:text.slice(0,120),done:false});input.value='';paintTaskChecklist();input.focus();}
+    else if(a==='list-item-add'){const input=el('noteListAdd');const text=input?input.value.trim():'';if(!text)return;ui.editListItems.push({id:uuid(),text:text.slice(0,120),done:false});input.value='';paintNoteListItems();input.focus();}
+    else if(a==='list-item-remove'){ui.editListItems=(ui.editListItems||[]).filter(s=>s.id!==button.dataset.sub);paintNoteListItems();}
+    else if(a==='toggle-list-item'){const note=data.notes.find(n=>n.id===id);const item=note?.checklist?.find(s=>s.id===button.dataset.sub);if(item){item.done=!item.done;note.updatedAt=new Date().toISOString();persist();render();}}
     else if(a==='checklist-remove'){ui.editChecklist=(ui.editChecklist||[]).filter(s=>s.id!==button.dataset.sub);paintTaskChecklist();}
     else if(a==='missed-to-today'){const today=todayKey();let n=0;data.tasks.forEach(t=>{if(!t.completed&&!t.missed&&t.dueDate&&t.dueDate<today){t.dueDate=today;t.updatedAt=new Date().toISOString();n++;}});if(n){persist();render();notify(`Moved ${n} missed ${n===1?'task':'tasks'} to today.`);}}
     else if(a==='undo-delete'){undoDelete();}
@@ -1101,6 +1117,7 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.fullscreenElement)ui.escFromFullscreen=Date.now();if(ui.viewer&&!ui.viewer.slideshow&&el('mediaViewer')?.open){if(e.key==='ArrowLeft'){viewerGoTo(ui.viewer.index-1,false);e.preventDefault();}else if(e.key==='ArrowRight'){viewerGoTo(ui.viewer.index+1,false);e.preventDefault();}}},true);
   document.addEventListener('cancel',e=>{if(!dialogMayClose())e.preventDefault();},true);
   document.addEventListener('keydown',e=>{if(e.target.id==='checklistAdd'&&e.key==='Enter'){e.preventDefault();handleAction({dataset:{action:'checklist-add'}});}});
+  document.addEventListener('keydown',e=>{if(e.target.id==='noteListAdd'&&e.key==='Enter'){e.preventDefault();handleAction({dataset:{action:'list-item-add'}});}});
   document.addEventListener('input',e=>{const previews={taskNotes:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],taskTitle:['taskNotes','taskTitle','taskLinkPreview','taskVideoPreview'],noteBody:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],noteTitle:['noteBody','noteTitle','noteLinkPreview','noteVideoPreview'],eventNotes:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview'],eventTitle:['eventNotes','eventTitle','eventLinkPreview','eventVideoPreview']};if(previews[e.target.id])refreshWebLinks(...previews[e.target.id]);if(e.target.id==='taskSearch'){ui.search=e.target.value;updateTaskResults();}
     if(e.target.id==='noteSearch'){ui.noteSearch=e.target.value;updateNoteResults();}
     if(e.target.id==='eventSearch'){ui.eventSearch=e.target.value;updateEventSearchResults();}
@@ -1133,7 +1150,7 @@
   document.addEventListener('visibilitychange',onVisibilityChange);el('folderDelete').addEventListener('click',deleteFolder);
   el('listForm').addEventListener('submit',saveList);el('listDelete').addEventListener('click',deleteList);
   el('importConfirm').addEventListener('click',confirmImport);
-  el('headerAdd').addEventListener('click',()=>openTask());el('headerAddNote').addEventListener('click',()=>openNote());el('headerAddEvent').addEventListener('click',()=>openEvent('',ui.view==='calendar'?ui.selectedDate:todayKey()));
+  el('headerAdd').addEventListener('click',()=>openTask());el('headerAddNote').addEventListener('click',()=>openDialog('noteTemplateDialog'));el('headerAddEvent').addEventListener('click',()=>openEvent('',ui.view==='calendar'?ui.selectedDate:todayKey()));
   el('searchFocusBtn').addEventListener('click',()=>{el('globalSearchInput').value='';openDialog('globalSearchDialog');updateGlobalSearch();setTimeout(()=>el('globalSearchInput')?.focus(),25);});
   el('brandLink').addEventListener('click',e=>{e.preventDefault();navigate('today');});
   el('viewerVideo').addEventListener('ended',viewerOnEnded);
