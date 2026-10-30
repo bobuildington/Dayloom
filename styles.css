@@ -274,3 +274,7 @@
 .picker-grid{margin-top:12px}
 .picker-tile.selected{outline:3px solid var(--accent)}
 .picker-check{position:absolute;top:6px;left:6px;background:var(--accent);color:#fff;border-radius:50%;width:24px;height:24px;display:grid;place-items:center;font-size:14px;z-index:1}
+.subtask-toggle-row{margin-top:8px}
+.subtask-toggle{background:none;border:0;color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;padding:4px 0}
+.subtask-toggle.expanded{margin-bottom:4px}
+.task-clear{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);white-space:nowrap;align-self:center}
