@@ -13,12 +13,12 @@
   <title>Dayloom — Your days, your way</title>
 </head>
 <body>
+  <noscript><div style="max-width:560px;margin:48px auto;padding:24px;font-family:system-ui,sans-serif;text-align:center"><h1>Dayloom needs JavaScript</h1><p>Please enable JavaScript in your browser to use Dayloom. Your saved data stays on this device.</p></div></noscript>
   <svg class="svg-symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
     <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/></symbol>
     <symbol id="i-checklist" viewBox="0 0 24 24"><path d="m4 7 2 2 4-4M13 7h8M4 17l2 2 4-4M13 17h8"/></symbol>
     <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M3 9v6M7 7v10M17 7v10M21 9v6M7 12h10"/></symbol>
-    <symbol id="i-layers" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h7"/></symbol>
     <symbol id="i-note" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
     <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1.2 1.6v.08h-4v-.08A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-1.2-1.2h-.08v-4H3A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1.2-1.2v-.08h4V3A1.7 1.7 0 0 0 15 4.2a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 1.2 1.2h.08v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -32,13 +32,9 @@
     <symbol id="i-edit" viewBox="0 0 24 24"><path d="m4 20 4-.8L20 7.2 16.8 4 4.8 16 4 20ZM14.5 6.3l3.2 3.2"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
-    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
-    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.2 16.4A8.7 8.7 0 0 1 7.6 3.8 8.7 8.7 0 1 0 20.2 16.4Z"/></symbol>
     <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 2 2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2L12 2Z"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
     <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></symbol>
-    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
-    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6m0-9v.1"/></symbol>
   </svg>
 
   <div class="app-shell" id="appShell">
@@ -133,7 +129,7 @@
         <input id="taskTitle" class="field" maxlength="160" placeholder="What needs to get done?" autocomplete="off" required>
         <div class="field-grid">
           <div><label class="field-label" for="taskDue">Due date</label><input id="taskDue" class="field" type="date"></div>
-          <div><label class="field-label" for="taskList">List</label><select id="taskList" class="field"></select></div>
+          <div><label class="field-label" for="taskList">Category</label><select id="taskList" class="field"></select></div>
           <div><label class="field-label" for="taskPriority">Priority</label><select id="taskPriority" class="field"><option value="none">No priority</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
           <div><label class="field-label" for="taskRepeat">Repeat</label><select id="taskRepeat" class="field"><option value="none">Never</option><option value="daily">Every day</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="custom">Custom weekdays</option></select></div>
         </div>
@@ -247,7 +243,7 @@
   <dialog id="listDialog" class="modal list-modal" aria-labelledby="listDialogTitle">
     <form id="listForm" novalidate>
       <div class="modal-header"><div><div class="eyebrow">ORGANIZE</div><h2 id="listDialogTitle">New category</h2></div><button class="icon-button" type="button" data-close="listDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
-      <div class="modal-body"><input type="hidden" id="listId"><label class="field-label" for="listName">Category name</label><input class="field" id="listName" maxlength="50" placeholder="e.g. Fitness, School, Home" required><label class="field-label">List color</label><div class="color-palette" id="listColorPalette"></div></div>
+      <div class="modal-body"><input type="hidden" id="listId"><label class="field-label" for="listName">Category name</label><input class="field" id="listName" maxlength="50" placeholder="e.g. Fitness, School, Home" required><label class="field-label">Category color</label><div class="color-palette" id="listColorPalette"></div></div>
       <div class="modal-footer"><button type="button" class="btn btn-danger-soft" id="listDelete" hidden>Delete category</button><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="listDialog">Cancel</button><button class="btn btn-primary" type="submit">Save category</button></div></div>
     </form>
   </dialog>
