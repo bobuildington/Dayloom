@@ -216,15 +216,15 @@
       <div class="viewer-stage">
         <img id="viewerImg" alt="">
         <video id="viewerVideo" controls playsinline preload="metadata"></video>
-        <button class="viewer-side viewer-side-prev" type="button" data-action="viewer-prev" aria-label="Previous">‹</button>
-        <button class="viewer-side viewer-side-next" type="button" data-action="viewer-next" aria-label="Next">›</button>
+        <button class="viewer-side viewer-side-prev" type="button" data-action="viewer-prev" id="viewerPrev" aria-label="Previous">‹</button>
+        <button class="viewer-side viewer-side-next" type="button" data-action="viewer-next" id="viewerNext" aria-label="Next">›</button>
       </div>
       <div class="viewer-bar">
         <span class="viewer-count" id="viewerCount"></span>
         <button class="viewer-btn" type="button" data-action="viewer-playall" id="viewerPlayAll">Play all</button>
-        <button class="viewer-btn" type="button" data-action="viewer-stopslide" id="viewerStopSlide" hidden>Stop slideshow</button>
+        <button class="viewer-btn" type="button" data-action="viewer-stopslide" id="viewerStopSlide" hidden>Stop</button>
         <button class="viewer-btn" type="button" data-action="viewer-loopall" id="viewerLoopAll" aria-pressed="false">↻ Loop all off</button>
-        <button class="viewer-btn" type="button" data-action="viewer-close">Close</button>
+        <button class="viewer-btn" type="button" data-action="viewer-close" id="viewerClose">Close</button>
       </div>
     </div>
   </dialog>
