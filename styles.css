@@ -278,3 +278,4 @@
 .subtask-toggle{background:none;border:0;color:var(--accent);font-weight:700;font-size:13px;cursor:pointer;padding:4px 0}
 .subtask-toggle.expanded{margin-bottom:4px}
 .task-clear{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text);white-space:nowrap;align-self:center}
+.modal-footer-left{display:flex;gap:8px}
