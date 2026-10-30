@@ -248,6 +248,12 @@
     </form>
   </dialog>
 
+  <dialog id="kegelVideoDialog" class="modal list-modal" aria-labelledby="kegelVideoDialogTitle">
+    <div class="modal-header"><div><div class="eyebrow">KEGEL</div><h2 id="kegelVideoDialogTitle">Add video</h2></div><button class="icon-button" type="button" data-close="kegelVideoDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
+    <div class="modal-body"><label class="field-label" for="kegelVideoInput">YouTube link or video ID</label><input class="field" id="kegelVideoInput" placeholder="e.g. https://www.youtube.com/watch?v=..." autocomplete="off"></div>
+    <div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="kegelVideoDialog">Cancel</button><button type="button" class="btn btn-primary" data-action="kegel-video-save">Add video</button></div></div>
+  </dialog>
+
   <dialog id="importDialog" class="modal list-modal" aria-labelledby="importDialogTitle">
     <div class="modal-header"><div><div class="eyebrow">RESTORE YOUR DATA</div><h2 id="importDialogTitle">Import backup</h2></div><button class="icon-button" type="button" data-close="importDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
     <div class="modal-body"><p class="import-message" id="importSummary"></p><div class="import-choices"><label class="choice-card"><input type="radio" name="importMode" value="merge" checked><span><strong>Merge with my data</strong><small>Keep current data and add backup items. For matching items, use the most recently edited version.</small></span></label><label class="choice-card"><input type="radio" name="importMode" value="replace"><span><strong>Replace everything</strong><small>Overwrite local tasks, events, notes, folders, lists and settings with this backup.</small></span></label></div></div>
