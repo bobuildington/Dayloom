@@ -779,10 +779,12 @@
     if(el('taskRepeat').value==='custom'&&(ui.editRepeatDays||[]).length===0){notify('Pick at least one weekday for a custom repeat.',true);return;}
     const old=data.tasks.find(t=>t.id===el('taskId').value),now=new Date().toISOString();
     const task={id:el('taskId').value||old?.id||uuid(),title:title.slice(0,160),notes:el('taskNotes').value.slice(0,4000),dueDate:validIsoDate(el('taskDue').value)?el('taskDue').value:'',listId:getList(el('taskList').value).id,priority:el('taskPriority').value,repeat:el('taskRepeat').value,repeatDays:el('taskRepeat').value==='custom'?(ui.editRepeatDays||[]).slice():[],repeatUntil:el('taskRepeat').value==='none'?'':(validIsoDate(el('taskRepeatUntil').value)?el('taskRepeatUntil').value:''),completed:old?.completed||false,completedAt:old?.completedAt||'',missed:old?.missed||false,checklist:readEditorChecklist(),reminder:validTime(el('taskReminder').value)?el('taskReminder').value:'',reminderNotified:(old&&old.reminder===el('taskReminder').value)?(old.reminderNotified||''):'' ,attachments:ui.editMedia&&ui.editMedia.ownerId===el('taskId').value?ui.editMedia.items:(old?.attachments||[]),createdAt:old?.createdAt||now,updatedAt:now};
+    if(!task.dueDate)task.dueDate=firstRepeatDate(task.repeat,task.repeatDays,task.repeatUntil);
     if(ui.editMedia&&ui.editMedia.ownerId===el('taskId').value){const keep=new Set(ui.editMedia.items.map(i=>i.id));ui.editMedia.original.forEach(o=>{if(!keep.has(o.id))mediaDelete(o.id);});}
     if(old) data.tasks[data.tasks.indexOf(old)]=task;else data.tasks.push(task);
     persist();closeDialog('taskDialog');render();notify(old?'Task updated':'Task added');
   }
+  function firstRepeatDate(repeat,repeatDays,repeatUntil){const today=todayKey();if(repeat==='none'||(repeatUntil&&repeatUntil<today))return '';if(repeat==='daily'||repeat==='weekly'||repeat==='monthly')return today;if(repeat==='custom'&&Array.isArray(repeatDays)&&repeatDays.length){const base=parseLocalDate(today);if(repeatDays.includes(base.getDay()))return today;for(let add=1;add<=7;add++){const cand=new Date(base);cand.setDate(base.getDate()+add);const key=localDate(cand);if(repeatUntil&&key>repeatUntil)return '';if(repeatDays.includes(cand.getDay()))return key;}}return '';}
   function nextRepeatDate(t){const start=parseLocalDate(t.dueDate)||parseLocalDate(todayKey());const d=new Date(start);const current=parseLocalDate(todayKey());if(d<current)d.setTime(current.getTime());
     const anchorDay=d.getDate();let next='';
     if(t.repeat==='daily'){d.setDate(d.getDate()+1);next=localDate(d);}
