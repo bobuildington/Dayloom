@@ -250,7 +250,7 @@
 
   <dialog id="kegelVideoDialog" class="modal list-modal" aria-labelledby="kegelVideoDialogTitle">
     <div class="modal-header"><div><div class="eyebrow">KEGEL</div><h2 id="kegelVideoDialogTitle">Add video</h2></div><button class="icon-button" type="button" data-close="kegelVideoDialog" aria-label="Close"><svg><use href="#i-x"/></svg></button></div>
-    <div class="modal-body"><label class="field-label" for="kegelVideoInput">YouTube link or video ID</label><input class="field" id="kegelVideoInput" placeholder="e.g. https://www.youtube.com/watch?v=..." autocomplete="off"></div>
+    <div class="modal-body"><label class="field-label" for="kegelVideoInput">YouTube link or video ID</label><input class="field" id="kegelVideoInput" placeholder="e.g. https://www.youtube.com/watch?v=..." autocomplete="off"><label class="field-label">Or upload your own video</label><div class="setting-action"><label class="btn" for="kegelFileInput">Choose video file</label><input type="file" id="kegelFileInput" accept="video/*" hidden></div><p class="form-tip">Videos you upload are stored on this device, like note attachments, and travel with your backups.</p></div>
     <div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="kegelVideoDialog">Cancel</button><button type="button" class="btn btn-primary" data-action="kegel-video-save">Add video</button></div></div>
   </dialog>
 
