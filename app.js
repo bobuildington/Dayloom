@@ -87,7 +87,7 @@
         checklist:Array.isArray(item.checklist)?item.checklist.filter(s=>s&&typeof s.text==='string'&&s.text.trim()).slice(0,50).map(s=>({id:validId(s.id)?s.id:uuid(),text:s.text.slice(0,120),done:s.done===true})):[],
         reminder:validTime(item.reminder)?item.reminder:'',
         reminderNotified:validIsoDate(item.reminderNotified)?item.reminderNotified:'',
-        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true})).slice(0,20):[],
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true,pi:a.pi===true})).slice(0,20):[],
         createdAt:validStamp(item.createdAt),
         updatedAt:validStamp(item.updatedAt),
         completedAt:typeof item.completedAt==='string'?item.completedAt:''
@@ -106,7 +106,7 @@
       eventMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),notes:safeString(item.notes,4000),
         startDate,endDate,startTime,endTime,allDay,repeat,color:validColor(item.color),
-        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true})).slice(0,20):[],
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true,pi:a.pi===true})).slice(0,20):[],
         createdAt:validStamp(item.createdAt),
         updatedAt:validStamp(item.updatedAt)
       });
@@ -128,6 +128,9 @@
       if(typeof item.video==='string' && /^[A-Za-z0-9_-]{11}$/.test(item.video)){
         const key='yt:'+item.video;
         if(!kegelMap.has(key)) kegelMap.set(key,{id:item.id,kind:'youtube',video:item.video});
+      } else if(item.kind==='pi' && typeof item.mediaId==='string' && validId(item.mediaId)){
+        const key='pi:'+item.mediaId;
+        if(!kegelMap.has(key)) kegelMap.set(key,{id:item.id,kind:'pi',mediaId:item.mediaId,name:safeString(item.name,120)});
       } else if(typeof item.mediaId==='string' && validId(item.mediaId)){
         const key='file:'+item.mediaId;
         if(!kegelMap.has(key)) kegelMap.set(key,{id:item.id,kind:'file',mediaId:item.mediaId,name:safeString(item.name,120)});
@@ -139,7 +142,7 @@
       noteMap.set(item.id,{
         id:item.id,title:safeString(item.title,160),body:safeString(item.body,20000),
         pinned:item.pinned===true,color:validColor(item.color),folderId:folderMap.has(item.folderId)?item.folderId:'',lockSalt:lockFields(item).salt,lockHash:lockFields(item).hash,isList:item.isList===true,checklist:Array.isArray(item.checklist)?item.checklist.filter(s=>s&&typeof s.id==='string'&&typeof s.text==='string').map(s=>({id:s.id.slice(0,120),text:s.text.slice(0,120),done:s.done===true})).slice(0,500):[],
-        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true})).slice(0,20):[],
+        attachments:Array.isArray(item.attachments)?item.attachments.filter(a=>a&&validId(a.id)&&['image','video'].includes(a.type)).map(a=>({id:a.id,type:a.type,loop:a.loop===true,pi:a.pi===true})).slice(0,20):[],
         createdAt:validStamp(item.createdAt),
         updatedAt:validStamp(item.updatedAt)
       });
@@ -159,8 +162,66 @@
   let toastTimer;
   function notify(message,error=false){const node=el('toast');ui.undo=null;node.classList.remove('has-action');node.textContent=message;node.classList.toggle('error',error);node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>node.classList.remove('visible'),4000);}
   let piMode=false;let piPostTimer=null;
+  let piGallery=[];let galleryPickMode='';let galleryPickSet=new Set();
+  function piMediaUrl(id){return '/api/media/'+encodeURIComponent(id);}
+  function galleryMeta(id){return piGallery.find(x=>x.id===id)||null;}
+  function refreshPiGallery(){
+    return fetch('/api/media').then(r=>{if(!r.ok)throw new Error('no server');return r.json();}).then(parsed=>{
+      piGallery=Array.isArray(parsed.items)?parsed.items.filter(x=>x&&x.id&&['image','video'].includes(x.type)):[];
+      if(ui.view==='gallery')render();
+    }).catch(()=>{});
+  }
+  function fmtBytes(n){const v=Number(n)||0;if(v<1024)return v+' B';if(v<1048576)return (Math.round(v/102.4)/10)+' KB';return (Math.round(v/104857.6)/10)+' MB';}
+  function galleryUsage(id){
+    let n=0;for(const coll of [data.tasks,data.events,data.notes])for(const it of coll)for(const a of (it.attachments||[]))if(a&&a.id===id&&a.pi)n++;
+    return n;
+  }
+  function renderGallery(){
+    const items=piGallery;
+    const list=items.length?`<div class="gallery-grid">${items.map(m=>`<div><div class="gallery-tile" data-action="gallery-view" data-id="${escapeHtml(m.id)}">${m.type==='video'?`<video src="${piMediaUrl(m.id)}" preload="metadata" muted playsinline></video><span class="gallery-badge">▶</span>`:`<img src="${piMediaUrl(m.id)}" alt="">`}</div><p class="form-tip" style="margin:6px 0 2px">${escapeHtml(m.name||'Gallery file')}</p><div class="setting-action"><button class="btn btn-danger-soft" data-action="gallery-delete" data-id="${escapeHtml(m.id)}">Delete</button></div></div>`).join('')}</div>`:`<div class="empty-state"><div class="empty-icon">${icon('sparkle')}</div><h3>No gallery files yet</h3><p>Upload a picture or video here once, then pick it from any task, note, or event. Everyone on the Pi sees the same files.</p></div>`;
+    return head('Gallery.','Upload pictures and videos here once, then pick them from any task, note, or event.',`<button class="btn btn-primary" data-action="gallery-upload">${icon('upload')} Upload</button><button class="btn" data-action="gallery-refresh">Refresh</button>`)+`<div class="setting-panel"><p>Gallery files are stored on the Pi, not in any one browser, so they show up on every device. Secret pictures and videos stay out of this gallery — attach those inside a secret note as before.</p><p class="form-tip" id="galleryStatus">${piMode?'Connected to the Pi gallery.':'If this says no Pi server was found, the gallery is not available in browser-only mode.'}</p><input type="file" id="galleryUploadInput" accept="image/*,video/*" multiple hidden></div>`+list;
+  }
+  function uploadToPiGallery(file){
+    if(!file)return Promise.resolve(null);
+    if(file.size>200*1024*1024){notify('"'+file.name+'" is too large (200 MB max).',true);return Promise.resolve(null);}
+    if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){notify('Only pictures and videos can go in the gallery.',true);return Promise.resolve(null);}
+    return new Promise(resolve=>{
+      const reader=new FileReader();
+      reader.onload=()=>{
+        const dataUrl=String(reader.result||'');const b64=dataUrl.indexOf(',')>=0?dataUrl.slice(dataUrl.indexOf(',')+1):'';
+        fetch('/api/media',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:file.name.slice(0,120),mime:file.type,data:b64})}).then(r=>r.json()).then(parsed=>{
+          if(!parsed||!parsed.item){notify('Could not upload "'+file.name+'".',true);resolve(null);return;}
+          piGallery.unshift(parsed.item);notify('Added to the gallery.');if(ui.view==='gallery')render();resolve(parsed.item);
+        }).catch(()=>{notify('Could not upload — is the Pi server running?',true);resolve(null);});
+      };
+      reader.onerror=()=>{notify('Could not read that file.',true);resolve(null);};
+      reader.readAsDataURL(file);
+    });
+  }
+  function openGalleryPicker(mode){
+    galleryPickMode=mode;
+    galleryPickSet=new Set();
+    if(mode==='edit'&&ui.editMedia)ui.editMedia.items.forEach(a=>{if(a.pi)galleryPickSet.add(a.id);});
+    const ensureDialog=()=>{
+      if(el('piGalleryPickerDialog'))return;
+      const d=document.createElement('dialog');d.id='piGalleryPickerDialog';d.className='modal list-modal';
+      d.innerHTML=`<div class="modal-header"><div><div class="eyebrow">GALLERY</div><h2>Pick from the gallery</h2></div><button class="icon-button" type="button" data-close="piGalleryPickerDialog" aria-label="Close">×</button></div><div class="modal-body"><div class="gallery-grid picker-grid" id="piGalleryPickerGrid"></div><p class="form-tip">Tap pictures to pick them. Upload new files from the Gallery tab first.</p></div><div class="modal-footer"><div class="modal-footer-right"><button type="button" class="btn btn-subtle" data-close="piGalleryPickerDialog">Cancel</button><button type="button" class="btn btn-primary" data-action="gallery-picker-add">Add selected</button></div></div>`;
+      document.body.appendChild(d);
+      d.addEventListener('click',e=>{if(e.target===d)closeDialog('piGalleryPickerDialog');});
+    };
+    ensureDialog();
+    const paint=()=>{
+      const grid=el('piGalleryPickerGrid');if(!grid)return;
+      if(!piGallery.length){grid.innerHTML='<p class="form-tip">No gallery files yet — upload some from the Gallery tab first.</p>';return;}
+      grid.innerHTML=piGallery.map(m=>{const picked=galleryPickSet.has(m.id);return `<div class="gallery-tile picker-tile ${picked?'selected':''}" data-action="gallery-pick-toggle" data-id="${escapeHtml(m.id)}"><span class="picker-check">${picked?'✓':''}</span>${m.type==='video'?`<video src="${piMediaUrl(m.id)}" preload="metadata" muted playsinline></video>`:`<img src="${piMediaUrl(m.id)}" alt="">`}</div>`;}).join('');
+    };
+    refreshPiGallery().then(paint);
+    paint();
+    openDialog('piGalleryPickerDialog');
+  }
+
   function postToPi(){if(!piMode)return;clearTimeout(piPostTimer);piPostTimer=setTimeout(()=>{fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(()=>{});},500);}
-  function loadPiData(){fetch('/api/data').then(r=>{if(!r.ok)throw new Error('no server');return r.json();}).then(parsed=>{let shared;try{shared=parseData(parsed);}catch(e){return;}const serverEmpty=!(shared.tasks&&shared.tasks.length)&&!(shared.events&&shared.events.length)&&!(shared.notes&&shared.notes.length);const localHasContent=!!(data.tasks&&data.tasks.length)||!!(data.events&&data.events.length)||!!(data.notes&&data.notes.length);piMode=true;if(serverEmpty&&localHasContent){postToPi();notify('Pi shared Dayloom: started from this device\'s data.');return;}if(!serverEmpty){data=shared;try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch(e){}applySettings();render();notify('Connected to Pi shared Dayloom.');}}).catch(()=>{});}
+  function loadPiData(){fetch('/api/data').then(r=>{if(!r.ok)throw new Error('no server');return r.json();}).then(parsed=>{let shared;try{shared=parseData(parsed);}catch(e){return;}const serverEmpty=!(shared.tasks&&shared.tasks.length)&&!(shared.events&&shared.events.length)&&!(shared.notes&&shared.notes.length);const localHasContent=!!(data.tasks&&data.tasks.length)||!!(data.events&&data.events.length)||!!(data.notes&&data.notes.length);piMode=true;refreshPiGallery();if(serverEmpty&&localHasContent){postToPi();notify('Pi shared Dayloom: started from this device\'s data.');return;}if(!serverEmpty){data=shared;try{localStorage.setItem(STORE_KEY,JSON.stringify(data));}catch(e){}applySettings();render();notify('Connected to Pi shared Dayloom.');}}).catch(()=>{});}
   function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(data));storageIssue=false;if(piMode)postToPi();return true;}catch(e){storageIssue=true;notify('Could not save on this device. Check browser storage settings.',true);return false;}}
   function applySettings(){
     const s=data.settings;const dark=s.theme==='dark'||(s.theme==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);
@@ -169,17 +230,17 @@
     document.documentElement.style.setProperty('--accent-soft',dark?'#30304a':'color-mix(in srgb, '+validColor(s.accent)+' 11%, white)');
     const themeTag=document.querySelector('meta[name="theme-color"]');if(themeTag)themeTag.content=dark?'#1e2031':'#f6f7fb';
   }
-  function navigate(view,force){if(!force&&ui.view==='secret'&&view!=='secret')return;location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
+  function navigate(view,force){if(!force&&ui.view==='secret'&&view!=='secret')return;location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();if(view==='gallery')refreshPiGallery();window.scrollTo(0,0);}
   function enterSecret(){ui.noteFolder='secret';ui.secretTab='notes';ui.secretAlbum=null;navigate('secret');}
   function exitSecret(){ui.unlockedFolders.delete('secret');ui.noteFolder='all';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();navigate('notes',true);notify('Secret folder closed.');}
-  const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'workouts',text:'Workouts',icon:'dumbbell'},{id:'notes',text:'Notes',icon:'note'},{id:'converter',text:'Converter',icon:'swap'},{id:'settings',text:'Settings',icon:'settings'}];
+  const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'workouts',text:'Workouts',icon:'dumbbell'},{id:'notes',text:'Notes',icon:'note'},{id:'gallery',text:'Gallery',icon:'grid'},{id:'converter',text:'Converter',icon:'swap'},{id:'settings',text:'Settings',icon:'settings'}];
   function getList(id){return data.lists.find(l=>l.id===id)||data.lists.find(l=>l.id==='inbox')||defaultData().lists[0];}
   const activeTasks=() => data.tasks.filter(t=>!t.completed&&!t.skipped);
   const byDate=(a,b)=> (a.dueDate||'9999').localeCompare(b.dueDate||'9999') || ({high:0,medium:1,low:2,none:3}[a.priority]-{high:0,medium:1,low:2,none:3}[b.priority]) || a.createdAt.localeCompare(b.createdAt);
   const sortTasks=arr=>[...arr].sort(byDate);
   function renderNav(){
     el('sideNav').innerHTML=views.map(v=>`<button class="nav-item ${ui.view===v.id?'active':''}" data-action="nav" data-view="${v.id}">${icon(v.icon)}<span>${v.text}</span>${v.id==='tasks'?`<span class="nav-count">${activeTasks().length}</span>`:''}</button>`).join('');
-    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',workouts:'Workouts',notes:'Notes',converter:'Converter',settings:'Settings'};
+    const titles={today:'Today',calendar:'Calendar',tasks:'All tasks',workouts:'Workouts',notes:'Notes',gallery:'Gallery',converter:'Converter',settings:'Settings'};
     el('mobileNav').innerHTML=`<button class="mobile-menu-btn" data-action="nav-menu" aria-label="Open menu"><span class="menu-icon">\u2630</span><span>${ui.view.startsWith('list:')?escapeHtml(getList(ui.view.slice(5)).name):titles[ui.view]||'Dayloom'}</span></button>`;
     el('topTitle').textContent=ui.view.startsWith('list:')?getList(ui.view.slice(5)).name:(titles[ui.view]||'Dayloom');
     el('headerAddEvent').hidden=ui.view!=='calendar';el('headerAdd').hidden=ui.view==='notes';el('headerAddNote').hidden=ui.view!=='notes';
@@ -216,10 +277,10 @@
   function mediaClear(){return mediaDB().then(db=>new Promise((res,rej)=>{const tx=db.transaction('attachments','readwrite');tx.objectStore('attachments').clear();tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);})).catch(()=>{});}
   function sweepOrphanMedia(){if(storageIssue)return;mediaGetAll().then(all=>{if(!all||!all.length)return;const keep=new Set();if(ui.undo&&ui.undo.pendingMedia)ui.undo.pendingMedia.forEach(id=>keep.add(id));for(const coll of [data.tasks,data.events,data.notes])for(const it of coll)for(const a of (it.attachments||[]))if(a&&a.id)keep.add(a.id);for(const v of (data.kegelVideos||[]))if(v.kind==='file'&&v.mediaId)keep.add(v.mediaId);all.forEach(att=>{if(att&&att.id&&!keep.has(att.id))mediaDelete(att.id);});}).catch(()=>{});}
   function toggleMediaLoop(id){if(!ui.editMedia)return;const it=(ui.editMedia.items||[]).find(x=>x.id===id);if(!it||it.type!=='video')return;it.loop=!it.loop;paintEditorMedia();}
-  async function paintEditorMedia(){const kind=ui.editMedia?.kind;if(!kind)return;const box=el(kind+'Media');if(!box)return;(ui.mediaURLs||[]).forEach(u=>URL.revokeObjectURL(u));ui.mediaURLs=[];const items=ui.editMedia.items||[];if(!items.length){box.innerHTML='<p class="form-tip">No photos or videos yet.</p>';return;}const parts=[];const missing=[];for(const ref of items){try{const att=await mediaGet(ref.id);if(!att||!att.blob){missing.push(ref.id);continue;}const url=URL.createObjectURL(att.blob);ui.mediaURLs.push(url);parts.push(att.type==='video'?`<div class="media-item"><video src="${url}" controls preload="metadata"${ref.loop?' loop':''}></video><button type="button" class="media-fullscreen-btn" data-action="media-video-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-loop" data-action="media-loop" data-id="${ref.id}" aria-label="Toggle loop">${ref.loop?'↻ Loop on':'↻ Loop off'}</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`:`<div class="media-item"><img src="${url}" alt="${escapeHtml(att.name||'photo')}" data-action="media-fullscreen"><button type="button" class="media-fullscreen-btn" data-action="media-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`);}catch(e){missing.push(ref.id);}}if(missing.length&&!piMode)ui.editMedia.items=ui.editMedia.items.filter(i=>!missing.includes(i.id));box.innerHTML=parts.join('')||'<p class="form-tip">No photos or videos yet.</p>';}
+  async function paintEditorMedia(){const kind=ui.editMedia?.kind;if(!kind)return;const box=el(kind+'Media');if(!box)return;const addBtn=document.querySelector(`[data-action="media-add"][data-kind="${kind}"]`);if(addBtn){const isSecretEdit=ui.view==='secret'||(kind==='note'&&data.notes.find(n=>n.id===ui.editMedia.ownerId)?.folderId==='secret');addBtn.textContent=isSecretEdit?'Add photo or video':'Add from Gallery';}(ui.mediaURLs||[]).forEach(u=>{if(String(u).startsWith('blob:'))URL.revokeObjectURL(u);});ui.mediaURLs=[];const items=ui.editMedia.items||[];if(!items.length){box.innerHTML='<p class="form-tip">No photos or videos yet.</p>';return;}const parts=[];const missing=[];for(const ref of items){try{if(ref.pi){const meta=galleryMeta(ref.id);const url=piMediaUrl(ref.id);parts.push(ref.type==='video'?`<div class="media-item"><video src="${url}" controls preload="metadata"${ref.loop?' loop':''}></video><button type="button" class="media-fullscreen-btn" data-action="media-video-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-loop" data-action="media-loop" data-id="${ref.id}" aria-label="Toggle loop">${ref.loop?'↻ Loop on':'↻ Loop off'}</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`:`<div class="media-item"><img src="${url}" alt="${escapeHtml(meta?.name||'photo')}" data-action="media-fullscreen"><button type="button" class="media-fullscreen-btn" data-action="media-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`);continue;}const att=await mediaGet(ref.id);if(!att||!att.blob){missing.push(ref.id);continue;}const url=URL.createObjectURL(att.blob);ui.mediaURLs.push(url);parts.push(att.type==='video'?`<div class="media-item"><video src="${url}" controls preload="metadata"${ref.loop?' loop':''}></video><button type="button" class="media-fullscreen-btn" data-action="media-video-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-loop" data-action="media-loop" data-id="${ref.id}" aria-label="Toggle loop">${ref.loop?'↻ Loop on':'↻ Loop off'}</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`:`<div class="media-item"><img src="${url}" alt="${escapeHtml(att.name||'photo')}" data-action="media-fullscreen"><button type="button" class="media-fullscreen-btn" data-action="media-fullscreen" aria-label="View fullscreen">⛶</button><button type="button" class="media-remove" data-action="media-remove" data-kind="${kind}" data-id="${ref.id}" aria-label="Remove">×</button></div>`);}catch(e){missing.push(ref.id);}}if(missing.length)ui.editMedia.items=ui.editMedia.items.filter(i=>!missing.includes(i.id)||i.pi);box.innerHTML=parts.join('')||'<p class="form-tip">No photos or videos yet.</p>';}
   function viewerVideos(){return (ui.viewer?.items||[]).filter(i=>i.type==='video');}
   function viewerNextVideoIndex(){const items=ui.viewer.items,vids=items.filter(i=>i.type==='video');if(!vids.length)return -1;const cur=items[ui.viewer.index];let pos=vids.findIndex(v=>v.id===cur?.id);if(pos<0)pos=-1;if(pos+1<vids.length)return items.indexOf(vids[pos+1]);return ui.viewer.loopAll?items.indexOf(vids[0]):-1;}
-  async function openMediaViewer(startIndex,itemsOverride,opts){const items=((itemsOverride||ui.editMedia?.items||[]).slice());if(!items.length)return;const urls={};for(const ref of items){try{const att=await mediaGet(ref.id);if(att&&att.blob)urls[ref.id]=URL.createObjectURL(att.blob);}catch(e){}}const live=items.filter(i=>urls[i.id]);if(!live.length){notify('This media is no longer available.',true);return;}let idx=live.indexOf(items[startIndex]);if(idx<0)idx=0;ui.viewer={items:live,urls,index:idx,playAll:false,loopAll:false,slideshow:!!opts?.slideshow,secret:!!opts?.secret,slideTimer:null};paintViewerItem();const d=el('mediaViewer');openDialog('mediaViewer');try{const req=d.requestFullscreen?d.requestFullscreen.bind(d):(d.webkitRequestFullscreen?d.webkitRequestFullscreen.bind(d):null);if(req){const p=req();if(p&&p.catch)p.catch(()=>{});}}catch(e){}}
+  async function openMediaViewer(startIndex,itemsOverride,opts){const items=((itemsOverride||ui.editMedia?.items||[]).slice());if(!items.length)return;const urls={};for(const ref of items){try{if(ref.pi){urls[ref.id]=piMediaUrl(ref.id);continue;}const att=await mediaGet(ref.id);if(att&&att.blob)urls[ref.id]=URL.createObjectURL(att.blob);}catch(e){}}const live=items.filter(i=>urls[i.id]);if(!live.length){notify('This media is no longer available.',true);return;}let idx=live.indexOf(items[startIndex]);if(idx<0)idx=0;ui.viewer={items:live,urls,index:idx,playAll:false,loopAll:false,slideshow:!!opts?.slideshow,secret:!!opts?.secret,slideTimer:null};paintViewerItem();const d=el('mediaViewer');openDialog('mediaViewer');try{const req=d.requestFullscreen?d.requestFullscreen.bind(d):(d.webkitRequestFullscreen?d.webkitRequestFullscreen.bind(d):null);if(req){const p=req();if(p&&p.catch)p.catch(()=>{});}}catch(e){}}
   function paintViewerItem(){const v=ui.viewer;if(!v)return;const ref=v.items[v.index],url=v.urls[ref.id];const img=el('viewerImg'),vid=el('viewerVideo');el('viewerCount').textContent=(v.index+1)+' of '+v.items.length;const pa=el('viewerPlayAll');if(pa)pa.textContent=v.playAll?'Stop':'Play all';const la=el('viewerLoopAll');if(la){la.textContent=v.loopAll?'↻ Loop all on':'↻ Loop all off';la.setAttribute('aria-pressed',v.loopAll?'true':'false');}const ss=el('viewerStopSlide');if(ss)ss.hidden=!v.slideshow;['viewerPrev','viewerNext','viewerPlayAll','viewerLoopAll','viewerClose','viewerCount'].forEach(id=>{const b=el(id);if(b)b.hidden=v.slideshow;});if(ref.type==='video'){img.hidden=true;img.removeAttribute('src');vid.hidden=false;vid.src=url;vid.loop=(v.playAll||v.slideshow)?false:!!ref.loop;const p=vid.play();if(p&&p.catch)p.catch(()=>{});}else{vid.pause();vid.hidden=true;vid.removeAttribute('src');try{vid.load();}catch(e){}img.hidden=false;img.src=url;}if(v.slideshow)scheduleSlide();}
   function viewerGoTo(i,auto){const v=ui.viewer;if(!v)return;if(!auto&&v.playAll)v.playAll=false;v.index=(i+v.items.length)%v.items.length;paintViewerItem();}
   function viewerTogglePlayAll(){const v=ui.viewer;if(!v)return;if(v.slideshow)stopSlideshow();if(v.playAll){v.playAll=false;paintViewerItem();return;}const vids=viewerVideos();if(!vids.length){notify('No videos in this note.',true);return;}v.playAll=true;v.index=v.items.indexOf(vids[0]);paintViewerItem();}
@@ -229,7 +290,7 @@
   function viewerSlideNext(){const v=ui.viewer;if(!v||!v.slideshow)return;if(v.index+1<v.items.length){v.index++;paintViewerItem();}else stopSlideshow();}
   function stopSlideshow(){const v=ui.viewer;if(!v||!v.slideshow)return;v.slideshow=false;if(v.slideTimer)clearTimeout(v.slideTimer);v.slideTimer=null;paintViewerItem();}
   function closeMediaViewer(){const d=el('mediaViewer');if(d&&d.open)d.close();cleanupViewer();}
-  function cleanupViewer(){const v=ui.viewer;if(!v)return;const vid=el('viewerVideo');if(vid){vid.pause();vid.removeAttribute('src');}Object.values(v.urls).forEach(u=>URL.revokeObjectURL(u));if(v.slideTimer)clearTimeout(v.slideTimer);if(document.fullscreenElement===el('mediaViewer')&&document.exitFullscreen){const p=document.exitFullscreen();if(p&&p.catch)p.catch(()=>{});}ui.viewer=null;}
+  function cleanupViewer(){const v=ui.viewer;if(!v)return;const vid=el('viewerVideo');if(vid){vid.pause();vid.removeAttribute('src');}Object.values(v.urls).forEach(u=>{if(String(u).startsWith('blob:'))URL.revokeObjectURL(u);});if(v.slideTimer)clearTimeout(v.slideTimer);if(document.fullscreenElement===el('mediaViewer')&&document.exitFullscreen){const p=document.exitFullscreen();if(p&&p.catch)p.catch(()=>{});}ui.viewer=null;}
   function addMedia(kind,input){const files=[...input.files];input.value='';if(!ui.editMedia||ui.editMedia.kind!==kind)return;files.forEach(file=>{if(file.size>200*1024*1024){notify(`"${file.name}" is too large to store on this device.`,true);return;}const type=file.type.startsWith('video/')?'video':'image';const id=uuid();mediaPut({id,ownerKind:kind,ownerId:ui.editMedia.ownerId,type,name:file.name.slice(0,120),blob:file,createdAt:new Date().toISOString()}).then(()=>{ui.editMedia.items.push({id,type});paintEditorMedia();}).catch(()=>notify('Could not save that file on this device.',true));});}
   function recordDelete(kind,items){if(!items||!items.length)return;if(ui.undo&&ui.undo.pendingMedia)ui.undo.pendingMedia.forEach(id=>mediaDelete(id));const pendingMedia=[];items.forEach(it=>(it.attachments||[]).forEach(a=>{if(a&&a.id)pendingMedia.push(a.id);}));ui.undo={kind,items:JSON.parse(JSON.stringify(items)),pendingMedia};showUndoToast(`Deleted ${items.length} ${kind}${items.length===1?'':'s'}.`);}
   function showUndoToast(message){const node=el('toast');if(!node)return;node.innerHTML=`<span>${escapeHtml(message)}</span> <button class="btn btn-primary" data-action="undo-delete">Undo</button>`;node.classList.remove('error');node.classList.add('has-action');node.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>{node.classList.remove('visible');node.classList.remove('has-action');const pending=ui.undo?ui.undo.pendingMedia:null;ui.undo=null;if(pending)pending.forEach(id=>mediaDelete(id));},8000);}
@@ -675,12 +736,12 @@
   }
   function parseKegelVideo(input){const ids=youtubeIds([input]);if(ids.length)return ids[0];const t=(input||'').trim();return /^[A-Za-z0-9_-]{11}$/.test(t)?t:'';}
   function addKegelVideo(input){const video=parseKegelVideo(input);if(!video){notify('Paste a YouTube link or video ID.',true);return false;}data.kegelVideos=data.kegelVideos||[];if(data.kegelVideos.some(v=>v.video===video)){notify('That video is already on the Kegel tab.');return false;}if(data.kegelVideos.length>=1){notify('Remove the current video before adding another.');return false;}data.kegelVideos.push({id:uuid(),kind:'youtube',video});persist();return true;}
-  function removeKegelVideo(id){const v=(data.kegelVideos||[]).find(x=>x.id===id);if(v&&v.kind==='file'&&v.mediaId){if(ui.kegelURLs[v.mediaId]){URL.revokeObjectURL(ui.kegelURLs[v.mediaId]);delete ui.kegelURLs[v.mediaId];}mediaDelete(v.mediaId);}data.kegelVideos=(data.kegelVideos||[]).filter(x=>x.id!==id);persist();}
+  function removeKegelVideo(id){const v=(data.kegelVideos||[]).find(x=>x.id===id);if(v&&v.kind==='pi'){data.kegelVideos=(data.kegelVideos||[]).filter(x=>x.id!==id);persist();return;}if(v&&v.kind==='file'&&v.mediaId){if(ui.kegelURLs[v.mediaId]){URL.revokeObjectURL(ui.kegelURLs[v.mediaId]);delete ui.kegelURLs[v.mediaId];}mediaDelete(v.mediaId);}data.kegelVideos=(data.kegelVideos||[]).filter(x=>x.id!==id);persist();}
   async function addKegelFile(input){const files=[...input.files];input.value='';const file=files[0];if(!file)return;if(!file.type.startsWith('video/')){notify('Choose a video file.',true);return;}if(file.size>200*1024*1024){notify(`"${file.name}" is too large to store on this device.`,true);return;}data.kegelVideos=data.kegelVideos||[];if(data.kegelVideos.length>=1){notify('Remove the current video before adding another.');return;}const id=uuid();try{await mediaPut({id,ownerKind:'kegel',ownerId:id,type:'video',name:file.name.slice(0,120),blob:file,createdAt:new Date().toISOString()});}catch(e){notify('Could not save that file on this device.',true);return;}data.kegelVideos.push({id,kind:'file',mediaId:id,name:file.name.slice(0,120)});persist();closeDialog('kegelVideoDialog');render();notify('Video added to the Kegel tab.');}
   async function loadKegelVideos(){const vids=document.querySelectorAll('video[data-kegel-media]');if(!vids.length)return;for(const vid of vids){const id=vid.dataset.kegelMedia;if(!id||vid.dataset.kegelLoaded===id)continue;try{const att=await mediaGet(id);if(att&&att.blob){if(ui.kegelURLs[id])URL.revokeObjectURL(ui.kegelURLs[id]);const url=URL.createObjectURL(att.blob);ui.kegelURLs[id]=url;vid.src=url;vid.dataset.kegelLoaded=id;}}catch(e){}}}
   function renderKegel(){
     const videos=data.kegelVideos||[];
-    const videoHtml=videos.length?videos.map(v=>{if(v.kind==='file')return `<div class="kegel-video"><video controls playsinline preload="metadata" data-kegel-media="${v.mediaId}"></video><span class="kegel-video-name">${escapeHtml(v.name||'My video')}</span><div class="setting-action"><button class="btn" data-action="kegel-video-remove" data-id="${v.id}">Remove video</button></div></div>`;return `<div class="kegel-video"><div class="video-embed"><iframe src="https://www.youtube.com/embed/${v.video}" loading="lazy" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" title="Kegel video"></iframe></div><div class="setting-action"><button class="btn" data-action="kegel-video-remove" data-id="${v.id}">Remove video</button></div></div>`;}).join(''):'<p class="form-tip">No videos yet — add one to watch while you train.</p>';
+    const videoHtml=videos.length?videos.map(v=>{if(v.kind==='pi')return `<div class="kegel-video"><video controls playsinline preload="metadata" src="${piMediaUrl(v.mediaId)}"></video><span class="kegel-video-name">${escapeHtml(v.name||'My video')}</span><div class="setting-action"><button class="btn" data-action="kegel-video-remove" data-id="${v.id}">Remove video</button></div></div>`;if(v.kind==='file')return `<div class="kegel-video"><video controls playsinline preload="metadata" data-kegel-media="${v.mediaId}"></video><span class="kegel-video-name">${escapeHtml(v.name||'My video')}</span><div class="setting-action"><button class="btn" data-action="kegel-video-remove" data-id="${v.id}">Remove video</button></div></div>`;return `<div class="kegel-video"><div class="video-embed"><iframe src="https://www.youtube.com/embed/${v.video}" loading="lazy" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" title="Kegel video"></iframe></div><div class="setting-action"><button class="btn" data-action="kegel-video-remove" data-id="${v.id}">Remove video</button></div></div>`;}).join(''):'<p class="form-tip">No videos yet — add one to watch while you train.</p>';
     return `<div class="setting-panel"><h2>Kegel routine</h2><div class="kegel-videos-head"><strong>Videos</strong>${videos.length?'':`<button class="btn" data-action="kegel-video-add">+ Add video</button>`}</div><div class="kegel-videos">${videoHtml}</div><div class="setting-action"><button class="btn btn-primary" data-action="timer-start" data-preset="kegel">Start timer</button><button class="btn" data-action="workout-add" data-name="Kegel" data-step="Kegel routine — 10 slow holds + 30 quick flicks">Add to today's session</button></div><div class="setting-action"><button class="btn" data-action="kegel-desc-toggle">Show description</button></div><div id="kegelDesc" hidden><p>Find the right muscles by stopping your urine flow once — just to identify them, not as training. Squeeze and lift those muscles, breathe normally, and keep your abs, buttocks, and thighs relaxed. Let go fully between every rep.</p><p><strong>One round, about 4½ minutes:</strong> 10 slow holds — squeeze for 10 seconds, relax for 10 seconds — then 30 quick flicks — squeeze for 1 second, relax for 1 second.</p><p>Do up to 3 rounds a day, whenever suits you: morning, afternoon, evening. Tap Start whenever you want a round — there is no once-a-day limit. Give it weeks of steady practice before judging it.</p></div><div id="timerDisplay"></div></div>`;
   }
   function filterWorkoutExercises(){const q=(el('workoutSearch')?.value||'').trim().toLowerCase();const f=ui.videoFilter||'all';let shown=0;document.querySelectorAll('.exercise-card').forEach(card=>{const match=(f==='all'||card.dataset.kind===f)&&(!q||card.dataset.name.includes(q)||card.dataset.cue.includes(q));card.hidden=!match;if(match)shown++;});const nm=el('workoutNoMatch');if(nm)nm.hidden=shown>0;const tip=el('workoutCardioTip');if(tip)tip.hidden=f!=='cardio';}
@@ -752,7 +813,7 @@
   }
   function updateGlobalSearch(){const q=(el('globalSearchInput')?.value||'').trim().toLowerCase();const box=el('globalSearchResults');if(!box)return;if(!q){box.innerHTML='<p class="form-tip">Type to search tasks, events, and notes.</p>';return;}const taskHits=data.tasks.filter(t=>(t.title+' '+t.notes).toLowerCase().includes(q)).slice(0,5);const eventHits=data.events.filter(e=>(e.title+' '+e.notes).toLowerCase().includes(q)).slice(0,5);const noteHits=data.notes.filter(n=>!noteHidden(n)&&(n.title+' '+n.body).toLowerCase().includes(q)).slice(0,5);const group=(label,hits,kind)=>hits.length?`<div class="global-group"><h3>${label}</h3>${hits.map(h=>`<button class="global-result" data-action="global-open" data-kind="${kind}" data-id="${escapeHtml(h.id)}"><strong>${escapeHtml(h.title)}</strong><span>${kind==='task'?(getList(h.listId).name+(h.dueDate?' · '+dateLabel(h.dueDate):'')):kind==='event'?eventWhen(h):(data.noteFolders.find(f=>f.id===h.folderId)?.name||'Unfiled')}</span></button>`).join('')}</div>`:'';const html=group('Tasks',taskHits,'task')+group('Events',eventHits,'event')+group('Notes',noteHits,'note');box.innerHTML=html||'<p class="form-tip">Nothing found.</p>';}
   function render(){document.body.classList.toggle('secret-mode',ui.view==='secret');if(appLocked()){showAppLock();return;}applySettings();renderNav();const m=el('mainContent');
-    m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='workouts'?renderWorkouts():ui.view==='tasks'?renderTasks():ui.view==='notes'?renderNotes():ui.view==='secret'?renderSecret():ui.view==='converter'?renderConverter():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
+    m.innerHTML=ui.view==='today'?renderToday():ui.view==='calendar'?renderCalendar():ui.view==='workouts'?renderWorkouts():ui.view==='tasks'?renderTasks():ui.view==='notes'?renderNotes():ui.view==='gallery'?renderGallery():ui.view==='secret'?renderSecret():ui.view==='converter'?renderConverter():ui.view==='settings'?renderSettings():ui.view.startsWith('list:')?renderList(ui.view.slice(5)):renderToday();
     if(ui.view==='workouts')paintTimerDisplay();
     if(ui.view==='workouts'&&ui.workoutTab==='kegel')loadKegelVideos();
     if(ui.view==='notes')updateNoteResults();
@@ -1091,14 +1152,46 @@
     else if(a==='enable-reminders'){if(typeof Notification==='undefined'){notify('This browser does not support notifications.',true);return;}Notification.requestPermission().then(p=>{notify(p==='granted'?'Reminders on — Dayloom will ping you when a task is due.':p==='denied'?'Notifications are blocked for this site. You can allow them in your browser settings.':'Notifications not enabled.');render();});}
     else if(a==='install-app')promptInstall();
     else if(a==='refresh-offline')refreshOfflineCopy();
-    else if(a==='media-add'){const input=el(button.dataset.kind+'MediaInput');if(input)input.click();}
+    else if(a==='media-add'){
+      const kind=button.dataset.kind;
+      const isSecret = ui.view==='secret' || (kind==='note' && el('noteId') && data.notes.find(n=>n.id===el('noteId').value)?.folderId==='secret');
+      if(isSecret){const input=el(kind+'MediaInput');if(input)input.click();}
+      else openGalleryPicker('edit');
+    }
+    else if(a==='gallery-upload'){const input=el('galleryUploadInput');if(input)input.click();}
+    else if(a==='gallery-refresh'){refreshPiGallery();}
+    else if(a==='gallery-view'){const m=galleryMeta(button.dataset.id||'');if(!m)return;openMediaViewer(0,[{id:m.id,type:m.type,pi:true}]);}
+    else if(a==='gallery-delete'){
+      const id=button.dataset.id||'';const m=galleryMeta(id);const used=galleryUsage(id);
+      if(used && !confirm('Delete "'+(m?.name||'this file')+'"? '+used+' item(s) use it — it will be removed from those items too.'))return;
+      if(!used && !confirm('Delete "'+(m?.name||'this file')+'" from the gallery?'))return;
+      fetch('/api/media/'+encodeURIComponent(id),{method:'DELETE'}).then(r=>{if(!r.ok)throw new Error('delete failed');piGallery=piGallery.filter(x=>x.id!==id);
+        if(used){for(const coll of [data.tasks,data.events,data.notes])for(const it of coll)it.attachments=(it.attachments||[]).filter(x=>!(x.pi&&x.id===id));persist();}
+        render();notify('Deleted from the gallery.');
+      }).catch(()=>notify('Could not delete that gallery file.',true));
+    }
+    else if(a==='gallery-pick-toggle'){const id=button.dataset.id||'';if(galleryPickSet.has(id))galleryPickSet.delete(id);else galleryPickSet.add(id);button.classList.toggle('selected',galleryPickSet.has(id));const chk=button.querySelector('.picker-check');if(chk)chk.textContent=galleryPickSet.has(id)?'✓':'';}
+    else if(a==='gallery-picker-add'){
+      closeDialog('piGalleryPickerDialog');
+      if(galleryPickMode==='kegel'){
+        const first=[...galleryPickSet][0];if(!first)return;
+        const m=galleryMeta(first);if(m?.type!=='video'){notify('Pick a video for the Kegel tab.',true);return;}
+        if((data.kegelVideos||[]).length>=1){notify('Remove the current video before adding another.');return;}
+        data.kegelVideos.push({id:uuid(),kind:'pi',mediaId:first,name:m.name||'My video'});persist();render();notify('Video added to the Kegel tab.');
+      } else if(ui.editMedia){
+        const existing=new Set(ui.editMedia.items.map(x=>x.id));
+        piGallery.filter(m=>galleryPickSet.has(m.id)&&!existing.has(m.id)).slice(0,Math.max(0,20-ui.editMedia.items.length)).forEach(m=>ui.editMedia.items.push({id:m.id,type:m.type,pi:true}));
+        paintEditorMedia();
+      }
+    }
+    else if(a==='kegel-gallery-pick'){closeDialog('kegelVideoDialog');openGalleryPicker('kegel');}
     else if(a==='media-loop'){toggleMediaLoop(button.dataset.id);}
     else if(a==='media-remove'){if(ui.editMedia){ui.editMedia.items=ui.editMedia.items.filter(i=>i.id!==button.dataset.id);paintEditorMedia();}}
     else if(a==='repeat-day'){const day=Number(button.dataset.day);if(Number.isInteger(day)&&day>=0&&day<=6){ui.editRepeatDays=ui.editRepeatDays||[];const i=ui.editRepeatDays.indexOf(day);if(i>=0)ui.editRepeatDays.splice(i,1);else ui.editRepeatDays.push(day);paintRepeatDays();}}
     else if(a==='workout-week'){const dir=button.dataset.dir;ui.workoutWeek=dir==='0'?0:(ui.workoutWeek||0)+Number(dir);render();}
     else if(a==='workout-tab'){ui.workoutTab=button.dataset.tab||'sessions';render();}
     else if(a==='video-filter'){ui.videoFilter=button.dataset.filter||'all';document.querySelectorAll('.video-filter-btn').forEach(b=>b.classList.toggle('active',b===button));filterWorkoutExercises();}
-    else if(a==='kegel-video-add'){const inp=el('kegelVideoInput');if(inp)inp.value='';openDialog('kegelVideoDialog');}
+    else if(a==='kegel-video-add'){const inp=el('kegelVideoInput');if(inp)inp.value='';openDialog('kegelVideoDialog');const dlg=el('kegelVideoDialog');if(dlg&&!dlg.querySelector('[data-action="kegel-gallery-pick"]')){const btn=document.createElement('button');btn.type='button';btn.className='btn';btn.setAttribute('data-action','kegel-gallery-pick');btn.textContent='Choose from Gallery';const foot=dlg.querySelector('.modal-footer-right');if(foot)foot.prepend(btn);}}
     else if(a==='kegel-video-save'){if(addKegelVideo(el('kegelVideoInput')?.value||'')){closeDialog('kegelVideoDialog');render();notify('Video added to the Kegel tab.');}}
     else if(a==='kegel-video-remove'){removeKegelVideo(button.dataset.id||'');render();notify('Video removed.');}
     else if(a==='kegel-desc-toggle'){const d=el('kegelDesc');if(d){d.hidden=!d.hidden;button.textContent=d.hidden?'Show description':'Hide description';}}
@@ -1161,6 +1254,7 @@
     else if(id==='importFile')importSelected(e.target.files?.[0]);
     else if(id==='icsFile')importICSFile(e.target.files?.[0]);
     else if(id==='kegelFileInput')addKegelFile(e.target);
+    else if(id==='galleryUploadInput'){const files=[...e.target.files];e.target.value='';(async()=>{for(const f of files)await uploadToPiGallery(f);})();}
     else if(id==='taskMediaInput')addMedia('task',e.target);
     else if(id==='eventMediaInput')addMedia('event',e.target);
     else if(id==='noteMediaInput')addMedia('note',e.target);

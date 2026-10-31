@@ -1,4 +1,4 @@
-const CACHE = 'dayloom-static-v9-pi';
+const CACHE = 'dayloom-static-v10-pi';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './icon.svg', './icon-192.png', './icon-512.png', './manifest.webmanifest'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
