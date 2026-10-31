@@ -218,6 +218,9 @@
 .kegel-video-name{font-size:12px;color:var(--muted)}
 .kegel-video video,.kegel-video .video-embed{width:calc(100% + 46px);margin-left:-23px;margin-right:-23px}
 @media(max-width:720px){.kegel-video video,.kegel-video .video-embed{width:calc(100% + 36px);margin-left:-18px;margin-right:-18px}}
+.timer-current.timer-kegel{flex-direction:row;flex-wrap:wrap;align-items:center}
+.timer-current.timer-kegel .timer-count{margin-left:auto}
+.timer-current.timer-kegel .timer-meta{flex-basis:100%}
 .exercise-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .exercise-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px}
 .exercise-card h3{margin:0;font-size:16px}
