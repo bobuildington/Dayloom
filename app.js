@@ -53,13 +53,13 @@
   const validId = v => typeof v === 'string' && v.length > 0 && v.length < 120 && /^[a-zA-Z0-9_-]+$/.test(v);
   const validIsoDate = v => typeof v === 'string' && v.length===10 && !!parseLocalDate(v);
   const validStamp = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v) ? v : new Date().toISOString();
-  function lockFields(item){return {salt:typeof item?.lockSalt==='string'?item.lockSalt.slice(0,128):(typeof item?.salt==='string'?item.salt.slice(0,128):''),hash:typeof item?.lockHash==='string'?item.lockHash.slice(0,128):(typeof item?.hash==='string'?item.hash.slice(0,128):'')};}
-  function isLocked(item){return !!lockFields(item).hash;}
-  function folderLocked(f){return !!f&&isLocked(f)&&!ui.unlockedFolders.has(f.id);}
-  function folderHidden(n){const f=data.noteFolders.find(x=>x.id===n.folderId);return !!f&&(folderLocked(f)||(f.id==='secret'&&ui.view!=='secret'));}
-  function noteLocked(n){return isLocked(n)&&!ui.unlockedNotes.has(n.id);}
-  function noteHidden(n){return noteLocked(n)||folderHidden(n);}
-  function appLocked(){return !!data.settings.appLock&&!ui.appUnlocked;}
+  function lockFields(item){return {salt:'',hash:''};}
+  function isLocked(item){return false;}
+  function folderLocked(f){return false;}
+  function folderHidden(n){const f=data.noteFolders.find(x=>x.id===n.folderId);return !!f&&(f.id==='secret'&&ui.view!=='secret');}
+  function noteLocked(n){return false;}
+  function noteHidden(n){return folderHidden(n);}
+  function appLocked(){return false;}
   async function hashPassword(salt,password){if(!crypto?.subtle)throw new Error('secure');const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+password));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');}
   function makeSalt(){const a=new Uint8Array(16);crypto.getRandomValues(a);return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');}
   async function makeLock(password){const salt=makeSalt();return {salt,hash:await hashPassword(salt,password)};}
@@ -145,10 +145,10 @@
       });
     }
     const incoming=raw.settings&&typeof raw.settings==='object'?raw.settings:{};
-    return {lists:[...listMap.values()],tasks:[...taskMap.values()],events:[...eventMap.values()],notes:[...noteMap.values()],noteFolders:[...folderMap.values()],secretAlbums:[...albumMap.values()],kegelVideos:[...kegelMap.values()].slice(0,1),settings:{
+    return {lists:[...listMap.values()],tasks:[...taskMap.values()],events:[...eventMap.values()],notes:[...noteMap.values()].map(n=>({...n,lockSalt:'',lockHash:''})),noteFolders:[...folderMap.values()].map(f=>({...f,lockSalt:'',lockHash:''})),secretAlbums:[...albumMap.values()],kegelVideos:[...kegelMap.values()].slice(0,1),settings:{
       theme:['system','light','dark'].includes(incoming.theme)?incoming.theme:base.settings.theme,
       accent:validColor(incoming.accent),weekStart:incoming.weekStart===1?1:0,
-      compact:incoming.compact===true,showCompleted:incoming.showCompleted!==false,appLock:lockFields(incoming.appLock||{}).hash?{salt:lockFields(incoming.appLock).salt,hash:lockFields(incoming.appLock).hash}:null
+      compact:incoming.compact===true,showCompleted:incoming.showCompleted!==false,appLock:null
     }};
   };
   let data=defaultData();
@@ -171,7 +171,7 @@
   }
   function navigate(view,force){if(!force&&ui.view==='secret'&&view!=='secret')return;location.hash=view==='today'?'#today':'#'+encodeURIComponent(view);ui.view=view;ui.selection=null;ui.search='';ui.taskStatus='open';ui.taskPriority='all';ui.taskList='all';render();window.scrollTo(0,0);}
   function enterSecret(){ui.noteFolder='secret';ui.secretTab='notes';ui.secretAlbum=null;navigate('secret');}
-  function exitSecret(){ui.unlockedFolders.delete('secret');ui.noteFolder='all';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();navigate('notes',true);notify('Secret folder locked.');}
+  function exitSecret(){ui.unlockedFolders.delete('secret');ui.noteFolder='all';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();navigate('notes',true);notify('Secret folder closed.');}
   const views=[{id:'today',text:'Today',icon:'grid'},{id:'calendar',text:'Calendar',icon:'calendar'},{id:'tasks',text:'All tasks',icon:'checklist'},{id:'workouts',text:'Workouts',icon:'dumbbell'},{id:'notes',text:'Notes',icon:'note'},{id:'converter',text:'Converter',icon:'swap'},{id:'settings',text:'Settings',icon:'settings'}];
   function getList(id){return data.lists.find(l=>l.id===id)||data.lists.find(l=>l.id==='inbox')||defaultData().lists[0];}
   const activeTasks=() => data.tasks.filter(t=>!t.completed&&!t.skipped);
@@ -401,12 +401,12 @@
   }
   function noteFolderControls(){
     const count=id=>data.notes.filter(n=>!folderHidden(n)&&(id==='all'||(id==='unfiled'?!n.folderId:n.folderId===id))).length;
-    const item=(id,name,color)=>{const f=id!=='all'&&id!=='unfiled'?data.noteFolders.find(x=>x.id===id):null;if(id==='secret'&&f&&folderLocked(f))return '';if(f&&folderLocked(f))return `<div class="note-folder-item"><button class="note-folder-select ${ui.noteFolder===id?'active':''}" data-action="note-filter" data-folder="${escapeHtml(id)}" aria-pressed="${ui.noteFolder===id}"><i>🔒</i><span>Locked folder</span></button><button class="note-folder-edit" data-action="unlock-folder" data-id="${escapeHtml(id)}" aria-label="Unlock folder">🔒</button></div>`;return `<div class="note-folder-item"><button class="note-folder-select ${ui.noteFolder===id?'active':''}" data-action="note-filter" data-folder="${escapeHtml(id)}" aria-pressed="${ui.noteFolder===id}"><i style="background:${color}"></i><span>${escapeHtml(name)}</span><small>${count(id)}</small></button>${id!=='all'&&id!=='unfiled'?`<button class="note-folder-edit" data-action="edit-folder" data-id="${escapeHtml(id)}" aria-label="Edit ${escapeHtml(name)} folder">${icon('edit')}</button>`:''}</div>`;};
+    const item=(id,name,color)=>{const f=id!=='all'&&id!=='unfiled'?data.noteFolders.find(x=>x.id===id):null;if(id==='secret')return '';if(f&&folderLocked(f))return `<div class="note-folder-item"><button class="note-folder-select ${ui.noteFolder===id?'active':''}" data-action="note-filter" data-folder="${escapeHtml(id)}" aria-pressed="${ui.noteFolder===id}"><i>🔒</i><span>Locked folder</span></button><button class="note-folder-edit" data-action="unlock-folder" data-id="${escapeHtml(id)}" aria-label="Unlock folder">🔒</button></div>`;return `<div class="note-folder-item"><button class="note-folder-select ${ui.noteFolder===id?'active':''}" data-action="note-filter" data-folder="${escapeHtml(id)}" aria-pressed="${ui.noteFolder===id}"><i style="background:${color}"></i><span>${escapeHtml(name)}</span><small>${count(id)}</small></button>${id!=='all'&&id!=='unfiled'?`<button class="note-folder-edit" data-action="edit-folder" data-id="${escapeHtml(id)}" aria-label="Edit ${escapeHtml(name)} folder">${icon('edit')}</button>`:''}</div>`;};
     return `<aside class="note-folders"><div class="note-folder-top"><strong>Folders</strong><button class="btn btn-subtle" data-action="new-folder" aria-label="Create a notes folder">${icon('plus')} New</button></div><div class="note-folder-list">${item('all','All notes','var(--accent)')}${item('unfiled','Unfiled','var(--muted)')}${data.noteFolders.map(f=>item(f.id,f.name,f.color)).join('')}</div></aside>`;
   }
   function renderSecret(){
     const f=data.noteFolders.find(x=>x.id==='secret');
-    if(!f||folderLocked(f))return head('Secret folder.','Locked — unlock to enter.',`<button class="btn btn-primary" data-action="unlock-folder" data-id="secret">Unlock</button><button class="btn" data-action="secret-exit">Exit</button>`)+`<div class="locked-panel"><span class="note-lock-icon">🔒</span><h3>This folder is locked</h3><p>Unlock it to see these notes.</p></div>`;
+    if(!f)return head('Secret folder.','No secret notes yet.',`<button class="btn btn-primary" data-action="secret-open">Create Secret folder</button><button class="btn" data-action="secret-exit">Exit</button>`)+`<div class="empty-state"><p>Create one — it stays in here, with no password on the Pi version.</p></div>`;
     const tabs=`<div class="workout-tabs"><button class="workout-tab-btn ${ui.secretTab==='notes'?'active':''}" data-action="secret-tab" data-tab="notes">Notes</button><button class="workout-tab-btn ${ui.secretTab==='gallery'?'active':''}" data-action="secret-tab" data-tab="gallery">Gallery</button></div>`;
     const sub=ui.secretTab==='gallery'?'Only these pictures are here. Exit to return to the rest of Dayloom.':'Only these notes are here. Exit to return to the rest of Dayloom.';
     return head('Secret folder.',sub,`<button class="btn" data-action="secret-exit">Exit</button>${ui.secretTab==='notes'?`<button class="btn btn-primary" data-action="secret-new-note">${icon('plus')} New note</button>`:''}`)+tabs+(ui.secretTab==='gallery'?renderSecretGallery():renderSecretNotes());
@@ -505,24 +505,18 @@
     el('noteDialogTitle').textContent=note?(listMode?'Edit list':'Edit note'):(listMode?'New list':'New note');el('noteId').value=note?.id||uuid();el('noteIsList').value=listMode?'1':'';
     ui.editMedia={kind:'note',ownerId:el('noteId').value,original:(note?.attachments||[]).map(a=>({...a})),items:(note?.attachments||[]).map(a=>({...a}))};paintEditorMedia();
     el('noteTitle').value=note?.title||'';el('noteBody').value=note?.body||'';el('notePinned').checked=note?.pinned||false;
-    el('noteFolder').innerHTML=ui.view==='secret'?`<option value="secret">Secret</option>`:'<option value="">Unfiled</option>'+data.noteFolders.filter(f=>!folderLocked(f)&&f.id!=='lists').map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
+    el('noteFolder').innerHTML=ui.view==='secret'?`<option value="secret">Secret</option>`:'<option value="">Unfiled</option>'+data.noteFolders.filter(f=>f.id!=='lists'&&f.id!=='secret').map(f=>`<option value="${escapeHtml(f.id)}">${escapeHtml(f.name)}</option>`).join('');
     el('noteFolder').value=note?.folderId||(ui.noteFolder!=='all'&&ui.noteFolder!=='unfiled'?ui.noteFolder:'');
     el('noteFolderWrap').hidden=listMode;el('noteBodyWrap').hidden=listMode;el('noteListWrap').hidden=!listMode;el('noteSave').textContent=listMode?'Save list':'Save note';
     ui.editListItems=listMode?(note?.checklist||[]).map(s=>({...s})):[];paintNoteListItems();
-    ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;el('noteLockPw').value='';el('noteLockPw2').value='';el('noteLockRemove').checked=false;el('noteLockRemoveWrap').hidden=!note?.lockHash;
+    ui.selectedNoteColor=note?.color||data.settings.accent;paintNoteColors();el('noteDelete').hidden=!note;el('noteLockPw').value='';el('noteLockPw2').value='';el('noteLockRemove').checked=false;el('noteLockRemoveWrap').hidden=true;el('noteLockPw').style.display='none';el('noteLockPw2').style.display='none';if(el('noteLockPw').previousElementSibling)el('noteLockPw').previousElementSibling.style.display='none';if(el('noteLockRemoveWrap').nextElementSibling)el('noteLockRemoveWrap').nextElementSibling.style.display='none';
     refreshWebLinks('noteBody','noteTitle','noteLinkPreview','noteVideoPreview');openDialog('noteDialog');focusOnOpen(!note,'noteTitle');
   }
   async function saveNote(e){
     e.preventDefault();const title=el('noteTitle').value.trim();if(!title){el('noteTitle').reportValidity();return;}
     const old=data.notes.find(n=>n.id===el('noteId').value),now=new Date().toISOString();
     const isList=el('noteIsList').value==='1';
-    const pw=el('noteLockPw').value,pw2=el('noteLockPw2').value;
-    let lockSalt=old?.lockSalt||'',lockHash=old?.lockHash||'';
-    if(el('noteLockRemove').checked){lockSalt='';lockHash='';}
-    else if(pw||pw2){
-      if(pw!==pw2){notify('Lock passwords do not match.',true);return;}
-      try{const lk=await makeLock(pw);lockSalt=lk.salt;lockHash=lk.hash;}catch(err){notify('Password locking needs a secure (HTTPS) page.',true);return;}
-    }
+    const lockSalt='',lockHash='';
     let folderId=data.noteFolders.some(f=>f.id===el('noteFolder').value)?el('noteFolder').value:'';
     if(folderId){const lf=data.noteFolders.find(f=>f.id===folderId);if(lf&&folderLocked(lf))folderId=old?.folderId||'';}
     if(old&&old.folderId==='secret')folderId='secret';
@@ -543,19 +537,13 @@
     if(folder&&folderLocked(folder)){openUnlock('folder',folder.id);return;}
     el('folderDialogTitle').textContent=folder?'Edit folder':'New folder';el('folderId').value=folder?.id||'';
     el('folderName').value=folder?.name||'';ui.selectedFolderColor=folder?.color||data.settings.accent;
-    el('folderDelete').hidden=!folder||folder.id==='lists';paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=!folder?.lockHash;openDialog('folderDialog');focusOnOpen(!folder,'folderName');
+    el('folderDelete').hidden=!folder||folder.id==='lists';paintFolderColors();el('folderLockPw').value='';el('folderLockPw2').value='';el('folderLockRemove').checked=false;el('folderLockRemoveWrap').hidden=true;el('folderLockPw').style.display='none';el('folderLockPw2').style.display='none';if(el('folderLockPw').previousElementSibling)el('folderLockPw').previousElementSibling.style.display='none';if(el('folderLockRemoveWrap').nextElementSibling)el('folderLockRemoveWrap').nextElementSibling.style.display='none';openDialog('folderDialog');focusOnOpen(!folder,'folderName');
   }
   async function saveFolder(e){
     e.preventDefault();const name=el('folderName').value.trim().slice(0,60);if(!name){el('folderName').reportValidity();return;}
     const old=data.noteFolders.find(f=>f.id===el('folderId').value);
     if(data.noteFolders.length>=250&&!old){notify('Folder limit reached.',true);return;}
-    const pw=el('folderLockPw').value,pw2=el('folderLockPw2').value;
-    let lockSalt=old?.lockSalt||'',lockHash=old?.lockHash||'';
-    if(el('folderLockRemove').checked){lockSalt='';lockHash='';}
-    else if(pw||pw2){
-      if(pw!==pw2){notify('Lock passwords do not match.',true);return;}
-      try{const lk=await makeLock(pw);lockSalt=lk.salt;lockHash=lk.hash;}catch(err){notify('Password locking needs a secure (HTTPS) page.',true);return;}
-    }
+    const lockSalt='',lockHash='';
     const folder={id:old?.id||uuid(),name,color:ui.selectedFolderColor,lockSalt,lockHash};
     if(old)data.noteFolders[data.noteFolders.indexOf(old)]=folder;else data.noteFolders.push(folder);
     if(!persist())return;closeDialog('folderDialog');ui.noteFolder=folder.id;render();notify(old?'Folder updated':'Folder created');
@@ -612,7 +600,7 @@
   function refreshOfflineCopy(){if(!('serviceWorker' in navigator)){notify('Offline support is not available in this browser.',true);return;}navigator.serviceWorker.ready.then(reg=>{if(reg.active)reg.active.postMessage({type:'refresh-cache'});ui.offlineReady=null;setTimeout(()=>{checkOfflineReady();notify('Offline copy refreshed — Dayloom is ready to use without a connection.');},1500);}).catch(()=>notify('Could not refresh the offline copy.',true));}
   function promptInstall(){if(!ui.deferredPrompt)return;const p=ui.deferredPrompt;ui.deferredPrompt=null;try{p.prompt();p.userChoice.then(()=>{if(ui.view==='settings')render();}).catch(()=>{});}catch(e){}}
   function renderSettings(){if(ui.offlineReady===null)checkOfflineReady();const notifSupported=typeof Notification!=='undefined';const notifState=notifSupported?Notification.permission:'unsupported';const reminderRow=notifState==='granted'?`<div class="setting-row"><div><span>Reminders</span><small>Notifications are on — reminders and timer finishes will ping you.</small></div><strong>On</strong></div>`:notifState==='denied'?`<div class="setting-row"><div><span>Reminders</span><small>Blocked — allow notifications in your browser settings to turn them on.</small></div></div>`:notifState==='unsupported'?`<div class="setting-row"><div><span>Reminders</span><small>Notifications are not supported in this browser.</small></div></div>`:`<div class="setting-row"><div><span>Reminders</span><small>Get a ping when a task's reminder time arrives or a workout timer finishes (while Dayloom is open).</small></div><button class="btn" data-action="enable-reminders">Enable notifications</button></div>`;
-    const appLockPanel=data.settings.appLock?`<div class="setting-panel"><div style="display:flex;align-items:center;justify-content:space-between"><h2>App lock</h2><button class="text-icon-button" type="button" data-action="secret-tap" aria-label="App lock" style="padding:8px">🔒</button></div><p>App lock is on. Dayloom asks for your password every time it opens, until you turn it off here.</p><p class="form-tip">If you forget this password there is no way to reset it — keep it somewhere safe.</p><label class="field-label" for="appLockPw">Change password</label><input id="appLockPw" class="field" type="password" autocomplete="new-password"><label class="field-label" for="appLockPw2">Confirm new password</label><input id="appLockPw2" class="field" type="password" autocomplete="new-password"><div class="setting-action"><button class="btn" data-action="app-lock-change">Change password</button><button class="btn btn-danger-soft" data-action="app-lock-remove">Remove app lock</button></div></div>`:`<div class="setting-panel"><div style="display:flex;align-items:center;justify-content:space-between"><h2>App lock</h2><button class="text-icon-button" type="button" data-action="secret-tap" aria-label="App lock" style="padding:8px">🔒</button></div><p>Ask for a password every time Dayloom opens. It stays locked until you turn this off here.</p><p class="form-tip">If you forget this password there is no way to reset it — keep it somewhere safe.</p><label class="field-label" for="appLockPw">Password</label><input id="appLockPw" class="field" type="password" autocomplete="new-password"><label class="field-label" for="appLockPw2">Confirm password</label><input id="appLockPw2" class="field" type="password" autocomplete="new-password"><div class="setting-action"><button class="btn btn-primary" data-action="app-lock-set">Turn on app lock</button></div></div>`;
+    const appLockPanel=`<div class="setting-panel"><div style="display:flex;align-items:center;justify-content:space-between"><h2>Secret folder</h2><button class="text-icon-button" type="button" data-action="secret-tap" aria-label="Secret folder" style="padding:8px">🔒</button></div><p>Tap the lock 5 times to open your Secret folder. There is no password on the Pi version.</p><div class="setting-action"><button class="btn btn-primary" data-action="secret-open">Open Secret folder</button></div></div>`;
   const offlineRow=ui.offlineReady===null?`<div class="setting-row"><div><span>Offline copy</span><small>Checking…</small></div></div>`:ui.offlineReady?`<div class="setting-row"><div><span>Offline copy</span><small>Ready — the app opens without a connection.</small></div><strong>Ready</strong></div>`:`<div class="setting-row"><div><span>Offline copy</span><small>Not ready yet — tap Refresh offline copy below.</small></div></div>`;
   const installPanel=isInstalled()?`<div class="setting-panel"><h2>Install & offline</h2><p>You're running the installed app — the same Dayloom as the GitHub site, and it works offline.</p>${offlineRow}<div class="setting-action"><button class="btn" data-action="refresh-offline">Refresh offline copy</button></div><p class="form-tip">Workout demo videos still need a connection — they're streamed from YouTube, not stored in the app.</p></div>`:`<div class="setting-panel"><h2>Install & offline</h2><p>Add Dayloom to your home screen so it opens like an app and works without a connection. The GitHub site stays exactly as it is.</p>${offlineRow}<div class="setting-action">${ui.deferredPrompt?`<button class="btn btn-primary" data-action="install-app">Install app</button>`:''}<button class="btn" data-action="refresh-offline">Refresh offline copy</button></div>${ui.deferredPrompt?'':`<p class="form-tip">${installHint()}</p>`}<p class="form-tip">Workout demo videos still need a connection — they're streamed from YouTube, not stored in the app.</p></div>`;
   return head('Make it feel like yours.','Customize your space and keep your data safe.')+
@@ -777,8 +765,7 @@
   function closeDialog(id){const d=el(id);if(d.open&&typeof d.close==='function')d.close();else d.removeAttribute('open');}
   function closeAllDialogs(){document.querySelectorAll('dialog[open]').forEach(d=>{if(typeof d.close==='function')d.close();else d.removeAttribute('open');});}
   function onVisibilityChange(){
-    if(document.hidden){ui.relockedOnHide=ui.unlockedNotes.size>0||ui.unlockedFolders.size>0;ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(ui.noteFolder==='secret')ui.noteFolder='all';if(ui.view==='secret')ui.view='notes';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();if(data.settings.appLock){ui.appUnlocked=false;showAppLock();}return;}
-    if(data.settings.appLock&&!ui.appUnlocked){ui.relockedOnHide=false;closeAllDialogs();showAppLock();return;}
+    if(document.hidden){ui.relockedOnHide=false;ui.unlockedNotes.clear();ui.unlockedFolders.clear();if(ui.noteFolder==='secret')ui.noteFolder='all';if(ui.view==='secret')ui.view='notes';ui.secretTab='notes';ui.secretAlbum=null;ui.albumPick=new Set();return;}
     if(ui.relockedOnHide){ui.relockedOnHide=false;render();}
     const nd=el('noteDialog');
     if(nd&&nd.open){const n=data.notes.find(x=>x.id===el('noteId').value);if(n&&noteHidden(n)){closeDialog('noteDialog');openUnlock(noteLocked(n)?'note':'folder',noteLocked(n)?n.id:n.folderId);return;}}
@@ -792,10 +779,10 @@
   function openUnlock(kind,id){ui.pendingUnlock={kind,id};const err=el('unlockError');if(err){err.hidden=true;err.textContent='';}const inp=el('unlockPassword');if(inp)inp.value='';openDialog('unlockDialog');setTimeout(()=>el('unlockPassword')?.focus(),25);}
   async function submitUnlock(e){e.preventDefault();const p=ui.pendingUnlock;if(!p)return;const pw=el('unlockPassword').value;if(!pw)return;const item=p.kind==='note'?data.notes.find(n=>n.id===p.id):data.noteFolders.find(f=>f.id===p.id);if(!item){closeDialog('unlockDialog');return;}let ok=false;try{ok=await verifyLock(item,pw);}catch(err){const er=el('unlockError');if(er){er.hidden=false;er.textContent='Password unlock needs a secure (HTTPS) page.';}return;}if(!ok){const er=el('unlockError');if(er){er.hidden=false;er.textContent='Wrong password.';}const inp=el('unlockPassword');if(inp){inp.value='';inp.focus();}return;}if(p.kind==='note')ui.unlockedNotes.add(p.id);else ui.unlockedFolders.add(p.id);ui.pendingUnlock=null;closeDialog('unlockDialog');render();if(p.kind==='note')openNote(p.id);else if(p.kind==='folder'&&p.id==='secret')enterSecret();}
   function secretTap(){const now=Date.now();if(now-ui.secretTapAt>2000)ui.secretTaps=0;ui.secretTapAt=now;ui.secretTaps++;if(ui.secretTaps>=5){ui.secretTaps=0;openSecretFolder();}}
-  function openSecretFolder(){const f=data.noteFolders.find(x=>x.id==='secret');if(!f){const pw=el('secretPw'),pw2=el('secretPw2'),err=el('secretSetupError');if(pw)pw.value='';if(pw2)pw2.value='';if(err)err.hidden=true;openDialog('secretSetupDialog');return;}if(folderLocked(f)){openUnlock('folder','secret');return;}enterSecret();}
-  async function submitSecretSetup(e){e.preventDefault();const pw=el('secretPw').value,pw2=el('secretPw2').value,err=el('secretSetupError');const bad=m=>{if(err){err.hidden=false;err.textContent=m;}};if(!pw)return bad('Choose a password.');if(pw!==pw2)return bad('Passwords do not match.');if(data.noteFolders.some(x=>x.id==='secret')){closeDialog('secretSetupDialog');render();return;}let lk;try{lk=await makeLock(pw);}catch(ex){return bad('Password locking needs a secure (HTTPS) page.');}data.noteFolders.push({id:'secret',name:'Secret',color:data.settings.accent,lockSalt:lk.salt,lockHash:lk.hash});ui.unlockedFolders.add('secret');persist();closeDialog('secretSetupDialog');enterSecret();notify('Secret folder is ready.');}
-  async function unlockApp(e){e.preventDefault();const pw=el('appLockInput').value;if(!pw)return;let ok=false;try{ok=await verifyLock(data.settings.appLock,pw);}catch(err){const er=el('appLockError');if(er){er.hidden=false;er.textContent='Password unlock needs a secure (HTTPS) page.';}return;}if(!ok){const er=el('appLockError');if(er){er.hidden=false;er.textContent='Wrong password.';}const inp=el('appLockInput');if(inp){inp.value='';inp.focus();}return;}ui.appUnlocked=true;const s=el('appLockScreen');if(s)s.hidden=true;render();}
-  async function saveAppLock(){const pw=el('appLockPw').value,pw2=el('appLockPw2').value;if(!pw||pw!==pw2){notify(pw?'App lock passwords do not match.':'Enter a password for the app lock.',true);return;}try{data.settings.appLock=await makeLock(pw);}catch(err){notify('Password locking needs a secure (HTTPS) page.',true);return;}if(!persist())return;render();notify('App lock on — Dayloom will ask for your password every time it opens.');}
+  function openSecretFolder(){const f=data.noteFolders.find(x=>x.id==='secret');if(!f){data.noteFolders.push({id:'secret',name:'Secret',color:data.settings.accent,lockSalt:'',lockHash:''});persist();enterSecret();notify('Secret folder is ready.');return;}enterSecret();}
+  async function submitSecretSetup(e){e.preventDefault();if(!data.noteFolders.some(x=>x.id==='secret')){data.noteFolders.push({id:'secret',name:'Secret',color:data.settings.accent,lockSalt:'',lockHash:''});persist();}closeDialog('secretSetupDialog');enterSecret();notify('Secret folder is ready.');}
+  async function unlockApp(e){e.preventDefault();ui.appUnlocked=true;const s=el('appLockScreen');if(s)s.hidden=true;render();}
+  async function saveAppLock(){notify('App lock is not available on the Pi version.',true);return;}
   function removeAppLock(){data.settings.appLock=null;if(!persist())return;render();notify('App lock removed.');}
   const paintTaskChecklist=()=>{const box=el('taskChecklist');if(!box)return;box.innerHTML=(ui.editChecklist||[]).map(s=>`<div class="checklist-edit-row" data-sub="${escapeHtml(s.id)}"><input class="field" maxlength="120" value="${escapeHtml(s.text)}" aria-label="Checklist step"><button type="button" class="btn btn-subtle" data-action="checklist-remove" data-sub="${escapeHtml(s.id)}">Remove</button></div>`).join('')||'<p class="form-tip">No steps yet — add one below.</p>';};
   const readEditorChecklist=()=>{const rows=[...document.querySelectorAll('#taskChecklist .checklist-edit-row')];return rows.map(row=>{const input=row.querySelector('input');const text=input?input.value.trim():'';const orig=(ui.editChecklist||[]).find(s=>s.id===row.dataset.sub);return {id:row.dataset.sub,text:text.slice(0,120),done:orig?orig.done:false};}).filter(s=>s.text);};
@@ -996,7 +983,7 @@
   async function exportProtected(e){e.preventDefault();const pw=el('exportPw').value,pw2=el('exportPw2').value,err=el('exportError');const bad=m=>{if(err){err.hidden=false;err.textContent=m;}};if(!pw)return bad('Choose a password for a protected backup, or use Download plain.');if(pw!==pw2)return bad('Passwords do not match.');let envelope;try{const contents=await buildBackupContents();envelope=await encryptBackup(JSON.stringify(contents),pw);}catch(ex){return bad(ex&&ex.message==='secure'?'Password protection needs a secure (HTTPS) page.':'Could not protect this backup.');}const blob=new Blob([JSON.stringify(envelope,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`dayloom-backup-${todayKey()}.protected.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);closeDialog('exportDialog');notify('Protected backup downloaded. Keep its password safe — without it, the backup cannot be opened.');}
   function beginImport(backup){const parsed=parseData(backup.data);ui.pendingImport=parsed;const rawMedia=Array.isArray(backup.media)?backup.media.slice(0,1000):[];const media=[];for(const m of rawMedia){if(!m||!validId(m.id)||!['task','event','note','kegel'].includes(m.ownerKind)||!validId(m.ownerId)||!['image','video'].includes(m.type)||typeof m.data!=='string'||!m.data)continue;media.push({id:m.id,ownerKind:m.ownerKind,ownerId:m.ownerId,type:m.type,name:typeof m.name==='string'?m.name.slice(0,120):'',mime:typeof m.mime==='string'?m.mime.slice(0,100):'',data:m.data});}ui.pendingMedia=media;el('importSummary').textContent=`Backup contains ${parsed.tasks.length} tasks, ${parsed.events.length} events, ${parsed.notes.length} notes, ${parsed.noteFolders.length} note folders and ${parsed.lists.length} lists, ${parsed.secretAlbums.length} albums and ${parsed.kegelVideos.length} kegel videos${media.length?` and ${media.length} photos/videos`:''}. Choose how to restore it.`;document.querySelector('input[name="importMode"][value="merge"]').checked=true;openDialog('importDialog');}
   async function importSelected(file){if(!file)return;if(file.size>500_000_000){notify('Backup too large (500 MB maximum).',true);return;}
-    try{const backup=JSON.parse(await file.text());if(backup.format==='dayloom-backup-encrypted'){ui.pendingEncrypted=backup;const pw=el('importBackupPw'),err=el('importBackupError');if(pw)pw.value='';if(err)err.hidden=true;openDialog('importPasswordDialog');return;}if(backup.format!=='dayloom-backup'||![1,2,3,4].includes(backup.version))throw new Error('Choose a Dayloom JSON backup (version 1, 2, 3 or 4).');beginImport(backup);
+    try{const backup=JSON.parse(await file.text());if(backup.format==='dayloom-backup-encrypted'){notify('Protected backups cannot be opened on the Pi version — use a plain backup instead.',true);return;}if(backup.format!=='dayloom-backup'||![1,2,3,4].includes(backup.version))throw new Error('Choose a Dayloom JSON backup (version 1, 2, 3 or 4).');beginImport(backup);
     }catch(e){notify(e.message||'Unable to read the backup.',true);}finally{el('importFile').value='';}
   }
   async function unlockBackupImport(e){e.preventDefault();const pw=el('importBackupPw').value,err=el('importBackupError');if(!pw||!ui.pendingEncrypted)return;let backup;try{const plain=await decryptBackup(ui.pendingEncrypted,pw);backup=JSON.parse(plain);}catch(ex){if(err){err.hidden=false;err.textContent=ex&&ex.message==='secure'?'Password unlock needs a secure (HTTPS) page.':'Wrong password or damaged backup file.';}const inp=el('importBackupPw');if(inp){inp.value='';inp.focus();}return;}if(backup.format!=='dayloom-backup'||![1,2,3,4].includes(backup.version)){if(err){err.hidden=false;err.textContent='This backup file is not valid.';}return;}ui.pendingEncrypted=null;closeDialog('importPasswordDialog');try{beginImport(backup);}catch(ex){notify(ex.message||'Unable to read the backup.',true);}}
@@ -1021,6 +1008,7 @@
     if(a==='nav'){closeDialog('navMenuDialog');navigate(button.dataset.view);}
     else if(a==='nav-menu')openNavMenu();
     else if(a==='secret-tap')secretTap();
+    else if(a==='secret-open')openSecretFolder();
     else if(a==='secret-exit')exitSecret();
     else if(a==='secret-tab'){ui.secretTab=button.dataset.tab==='gallery'?'gallery':'notes';ui.secretAlbum=null;render();}
     else if(a==='secret-album-open'){ui.secretAlbum=id;render();}
@@ -1082,7 +1070,7 @@
     else if(a==='prev-month'||a==='next-month'){const d=new Date(ui.year,ui.month+(a==='next-month'?1:-1),1);ui.year=d.getFullYear();ui.month=d.getMonth();ui.selectedDate=localDate(d);render();}
     else if(a==='select-day'){ui.selectedDate=button.dataset.date;const d=parseLocalDate(ui.selectedDate);ui.month=d.getMonth();ui.year=d.getFullYear();render();}
     else if(a==='setting'){setSetting(button.dataset.setting,button.dataset.value);}
-    else if(a==='export'){const pw=el('exportPw'),pw2=el('exportPw2'),err=el('exportError');if(pw)pw.value='';if(pw2)pw2.value='';if(err)err.hidden=true;openDialog('exportDialog');}
+    else if(a==='export'){exportBackup();}
     else if(a==='export-plain'){closeDialog('exportDialog');exportBackup();}
     else if(a==='import')el('importFile').click();
     else if(a==='ics-export')exportICS();
